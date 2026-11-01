@@ -1,4 +1,5 @@
 # Space Shooter Leaderboard: Name;;;Score;;;GalonCount;;;Date
+Astronaut-1;;;3000;;;30;;;2026-11-01 20:11
 Astronaut;;;2900;;;29;;;2026-11-01 09:51
 Captain Nova;;;1500;;;15;;;2026-11-01 09:32
 Galaxy Ace;;;1000;;;10;;;2026-11-01 09:32

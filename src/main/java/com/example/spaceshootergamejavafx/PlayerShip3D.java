@@ -217,19 +217,57 @@ public class PlayerShip3D extends Entity3D {
         }
     }
 
+    public boolean isMoveForward() {
+        return moveForward;
+    }
+
+    public boolean isMoveBackward() {
+        return moveBackward;
+    }
+
+    public double getForwardSpeed() {
+        return forwardSpeed;
+    }
+
     private void renderCrosshair3D(GraphicsContext gc, Camera3D camera) {
         double crossZ = 1200.0;
         double crossX = camera.projectX(this.x * 0.35, crossZ);
         double crossY = camera.projectY(this.y * 0.45, crossZ);
 
         gc.save();
-        gc.setStroke(Color.color(0.0, 0.9, 1.0, 0.45));
-        gc.setLineWidth(1.2);
-        gc.strokeOval(crossX - 9, crossY - 9, 18, 18);
-        gc.strokeLine(crossX - 14, crossY, crossX - 4, crossY);
-        gc.strokeLine(crossX + 4, crossY, crossX + 14, crossY);
-        gc.strokeLine(crossX, crossY - 14, crossX, crossY - 4);
-        gc.strokeLine(crossX, crossY + 4, crossX, crossY + 14);
+        // Cincin Luar Berputar Lembut
+        double ringR = 14.0;
+        gc.setStroke(Color.color(0.0, 0.9, 1.0, 0.55));
+        gc.setLineWidth(1.4);
+        gc.strokeOval(crossX - ringR, crossY - ringR, ringR * 2, ringR * 2);
+
+        // Brackets Pengunci Sudut [ ]
+        double bLen = 8.0;
+        double bDist = 20.0;
+        gc.setStroke(Color.web("#80d8ff"));
+        gc.setLineWidth(1.6);
+        // Kiri-Atas
+        gc.strokeLine(crossX - bDist, crossY - bDist, crossX - bDist + bLen, crossY - bDist);
+        gc.strokeLine(crossX - bDist, crossY - bDist, crossX - bDist, crossY - bDist + bLen);
+        // Kanan-Atas
+        gc.strokeLine(crossX + bDist, crossY - bDist, crossX + bDist - bLen, crossY - bDist);
+        gc.strokeLine(crossX + bDist, crossY - bDist, crossX + bDist, crossY - bDist + bLen);
+        // Kiri-Bawah
+        gc.strokeLine(crossX - bDist, crossY + bDist, crossX - bDist + bLen, crossY + bDist);
+        gc.strokeLine(crossX - bDist, crossY + bDist, crossX - bDist, crossY + bDist - bLen);
+        // Kanan-Bawah
+        gc.strokeLine(crossX + bDist, crossY + bDist, crossX + bDist - bLen, crossY + bDist);
+        gc.strokeLine(crossX + bDist, crossY + bDist, crossX + bDist, crossY + bDist - bLen);
+
+        // Titik Pip Inti
+        gc.setFill(Color.WHITE);
+        gc.fillOval(crossX - 2, crossY - 2, 4, 4);
+
+        // Telemetri Jarak Sensor 3D
+        gc.setFont(javafx.scene.text.Font.font("Segoe UI", javafx.scene.text.FontWeight.BOLD, 9));
+        gc.setFill(Color.web("#00e5ff", 0.75));
+        gc.fillText("LOCK 1.2KM", crossX - 24, crossY + 33);
+
         gc.restore();
     }
 

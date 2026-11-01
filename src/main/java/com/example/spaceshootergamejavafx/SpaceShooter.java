@@ -300,18 +300,18 @@ public class SpaceShooter extends Application {
         rootBox.setPadding(new Insets(16));
 
         // Header Title
-        Text titleText = new Text("SPACE INVADER 3D");
-        titleText.setFont(Font.font("Segoe UI", FontWeight.EXTRA_BOLD, 44));
+        Text titleText = new Text("★ STAR INVADER 3D ★");
+        titleText.setFont(Font.font("Segoe UI", FontWeight.EXTRA_BOLD, 46));
         titleText.setFill(Color.web("#00e5ff"));
-        titleText.setEffect(new DropShadow(22, Color.web("#00b0ff")));
+        titleText.setEffect(new DropShadow(26, Color.web("#00b0ff")));
 
-        Text subText = new Text("HANGAR PEMILIHAN PESAWAT & PERSIAPAN MISI");
-        subText.setFont(Font.font("Segoe UI", FontWeight.BOLD, 15));
+        Text subText = new Text("[ // TACTICAL AEROSPACE DOCK // SECTOR 01-05 READY // ]");
+        subText.setFont(Font.font("Segoe UI", FontWeight.BOLD, 14));
         subText.setFill(Color.web("#ffd600"));
 
         HBox mainHangarBox = new HBox(24);
         mainHangarBox.setAlignment(Pos.CENTER);
-        mainHangarBox.setMaxWidth(880);
+        mainHangarBox.setMaxWidth(920);
 
         // Preview Canvas Pesawat 3D di Hangar
         Canvas previewCanvas = new Canvas(340, 240);
@@ -326,18 +326,19 @@ public class SpaceShooter extends Application {
         };
         turntableTimer.start();
 
-        VBox leftBox = new VBox(8);
+        VBox leftBox = new VBox(10);
         leftBox.setAlignment(Pos.CENTER);
         leftBox.setStyle(
-                "-fx-background-color: rgba(10, 25, 55, 0.75);"
-                + "-fx-padding: 14;"
-                + "-fx-background-radius: 14;"
+                "-fx-background-color: rgba(8, 20, 48, 0.85);"
+                + "-fx-padding: 16;"
+                + "-fx-background-radius: 16;"
                 + "-fx-border-color: #00e5ff;"
-                + "-fx-border-width: 1.5;"
-                + "-fx-border-radius: 14;"
+                + "-fx-border-width: 1.6;"
+                + "-fx-border-radius: 16;"
+                + "-fx-effect: dropshadow(three-pass-box, rgba(0, 229, 255, 0.35), 14, 0, 0, 0);"
         );
 
-        Label previewTitle = new Label("3D SHIP HOLOGRAM");
+        Label previewTitle = new Label("// 3D HOLOGRAPHIC DOCK //");
         previewTitle.setFont(Font.font("Segoe UI", FontWeight.BOLD, 13));
         previewTitle.setTextFill(Color.web("#80d8ff"));
 
@@ -349,26 +350,48 @@ public class SpaceShooter extends Application {
         Button nextBtn = createMiniButton("▶");
 
         Label shipNameLabel = new Label(selectedShip.getName());
-        shipNameLabel.setFont(Font.font("Segoe UI", FontWeight.EXTRA_BOLD, 18));
+        shipNameLabel.setFont(Font.font("Segoe UI", FontWeight.EXTRA_BOLD, 20));
         shipNameLabel.setTextFill(selectedShip.getPrimaryColor());
-        shipNameLabel.setPrefWidth(170);
+        shipNameLabel.setPrefWidth(190);
         shipNameLabel.setAlignment(Pos.CENTER);
 
         // Right Info Box
         VBox rightBox = new VBox(10);
         rightBox.setAlignment(Pos.CENTER_LEFT);
-        rightBox.setPrefWidth(420);
+        rightBox.setPrefWidth(460);
         rightBox.setStyle(
-                "-fx-background-color: rgba(10, 25, 55, 0.75);"
-                + "-fx-padding: 16;"
-                + "-fx-background-radius: 14;"
+                "-fx-background-color: rgba(8, 20, 48, 0.85);"
+                + "-fx-padding: 18;"
+                + "-fx-background-radius: 16;"
                 + "-fx-border-color: #00e5ff;"
-                + "-fx-border-width: 1.5;"
-                + "-fx-border-radius: 14;"
+                + "-fx-border-width: 1.6;"
+                + "-fx-border-radius: 16;"
+                + "-fx-effect: dropshadow(three-pass-box, rgba(0, 229, 255, 0.35), 14, 0, 0, 0);"
         );
 
+        // Input Nama Pemain / Callsign
+        HBox nameBox = new HBox(10);
+        nameBox.setAlignment(Pos.CENTER_LEFT);
+        Label pNameLbl = new Label("👨‍🚀 CALLSIGN:");
+        pNameLbl.setFont(Font.font("Segoe UI", FontWeight.BOLD, 13));
+        pNameLbl.setTextFill(Color.web("#80d8ff"));
+
+        TextField nameInput = new TextField(currentPlayerName);
+        nameInput.setPrefWidth(270);
+        nameInput.setFont(Font.font("Segoe UI", FontWeight.BOLD, 14));
+        nameInput.setStyle(
+                "-fx-background-color: #06152d;"
+                + "-fx-text-fill: white;"
+                + "-fx-border-color: #00e5ff;"
+                + "-fx-border-radius: 8;"
+                + "-fx-background-radius: 8;"
+                + "-fx-padding: 6 10 6 10;"
+        );
+
+        nameBox.getChildren().addAll(pNameLbl, nameInput);
+
         Label descLabel = new Label(selectedShip.getDescription());
-        descLabel.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 13));
+        descLabel.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 12));
         descLabel.setTextFill(Color.web("#cfd8dc"));
         descLabel.setWrapText(true);
 
@@ -377,32 +400,84 @@ public class SpaceShooter extends Application {
         ProgressBar handleBar = createStatBar(selectedShip.getHandling() / 0.22, "#ffea00");
         ProgressBar magnetBar = createStatBar(selectedShip.getMagnetRange() / 250.0, "#d500f9");
 
+        Label speedPct = new Label((int)(selectedShip.getSpeed() * 10) + "%");
+        speedPct.setFont(Font.font("Segoe UI", FontWeight.BOLD, 11));
+        speedPct.setTextFill(Color.web("#00e5ff"));
+
+        Label handlePct = new Label((int)(selectedShip.getHandling() / 0.22 * 100) + "%");
+        handlePct.setFont(Font.font("Segoe UI", FontWeight.BOLD, 11));
+        handlePct.setTextFill(Color.web("#ffea00"));
+
+        Label magnetPct = new Label((int)(selectedShip.getMagnetRange() / 250.0 * 100) + "%");
+        magnetPct.setFont(Font.font("Segoe UI", FontWeight.BOLD, 11));
+        magnetPct.setTextFill(Color.web("#d500f9"));
+
         VBox statsBox = new VBox(6);
         statsBox.getChildren().addAll(
-                createStatRow("KECEPATAN (SPEED)", speedBar),
-                createStatRow("MANUVER (HANDLING)", handleBar),
-                createStatRow("MAGNET GALON", magnetBar)
+                createStatRow("WARP SPEED", speedBar, speedPct),
+                createStatRow("3D MANEUVER", handleBar, handlePct),
+                createStatRow("MAGNET GRAVITY", magnetBar, magnetPct)
         );
 
-        // Pilihan Drone Pendukung
-        Label droneLabel = new Label("PILIH DRONE PENDUKUNG:");
+        // Pilihan Drone Pendukung Interaktif (Cyber Cards)
+        Label droneLabel = new Label("PILIH COMPANION DRONE:");
         droneLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 13));
         droneLabel.setTextFill(Color.web("#80d8ff"));
 
-        HBox droneChoices = new HBox(8);
-        ToggleGroup droneGroup = new ToggleGroup();
+        HBox droneCardsBox = new HBox(8);
+        droneCardsBox.setAlignment(Pos.CENTER_LEFT);
+        List<VBox> droneCardsList = new ArrayList<>();
 
         for (DroneType dt : DroneType.values()) {
-            RadioButton rb = new RadioButton(dt.getTitle());
-            rb.setToggleGroup(droneGroup);
-            rb.setFont(Font.font("Segoe UI", FontWeight.BOLD, 11));
-            rb.setTextFill(Color.WHITE);
-            if (dt == selectedDrone) rb.setSelected(true);
-            rb.setOnAction(e -> {
+            VBox card = new VBox(3);
+            card.setAlignment(Pos.CENTER);
+            card.setPadding(new Insets(8, 10, 8, 10));
+            card.setPrefWidth(136);
+            card.setCursor(javafx.scene.Cursor.HAND);
+
+            Label dIcon = new Label(dt == DroneType.MAGNET_DRONE ? "🧲" : (dt == DroneType.SHIELD_DRONE ? "🛡️" : "⚡"));
+            dIcon.setFont(Font.font("Segoe UI", FontWeight.BOLD, 18));
+
+            Label dName = new Label(dt.getTitle());
+            dName.setFont(Font.font("Segoe UI", FontWeight.BOLD, 11));
+            dName.setTextFill(Color.WHITE);
+
+            String perk = dt == DroneType.MAGNET_DRONE ? "+35% Tarik Galon" : (dt == DroneType.SHIELD_DRONE ? "Perisai Kinetik" : "Laser Tambahan");
+            Label dPerk = new Label(perk);
+            dPerk.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 9));
+            dPerk.setTextFill(Color.web("#80d8ff"));
+
+            card.getChildren().addAll(dIcon, dName, dPerk);
+            droneCardsList.add(card);
+
+            card.setOnMouseClicked(e -> {
                 selectedDrone = dt;
                 SoundManager.playClick();
+                for (int i = 0; i < DroneType.values().length; i++) {
+                    DroneType t = DroneType.values()[i];
+                    VBox c = droneCardsList.get(i);
+                    boolean isSel = (t == selectedDrone);
+                    c.setStyle(
+                            "-fx-background-color: " + (isSel ? "linear-gradient(to bottom, rgba(0, 229, 255, 0.35), rgba(10, 30, 70, 0.85));" : "rgba(10, 20, 45, 0.65);")
+                            + "-fx-border-color: " + (isSel ? "#00e5ff;" : "rgba(0, 229, 255, 0.25);")
+                            + "-fx-border-width: " + (isSel ? "1.8;" : "1.0;")
+                            + "-fx-border-radius: 8;"
+                            + "-fx-background-radius: 8;"
+                    );
+                    c.setEffect(isSel ? new DropShadow(10, Color.web("#00e5ff")) : null);
+                }
             });
-            droneChoices.getChildren().add(rb);
+
+            boolean isSel = (dt == selectedDrone);
+            card.setStyle(
+                    "-fx-background-color: " + (isSel ? "linear-gradient(to bottom, rgba(0, 229, 255, 0.35), rgba(10, 30, 70, 0.85));" : "rgba(10, 20, 45, 0.65);")
+                    + "-fx-border-color: " + (isSel ? "#00e5ff;" : "rgba(0, 229, 255, 0.25);")
+                    + "-fx-border-width: " + (isSel ? "1.8;" : "1.0;")
+                    + "-fx-border-radius: 8;"
+                    + "-fx-background-radius: 8;"
+            );
+            if (isSel) card.setEffect(new DropShadow(10, Color.web("#00e5ff")));
+            droneCardsBox.getChildren().add(card);
         }
 
         prevBtn.setOnAction(e -> {
@@ -415,6 +490,9 @@ public class SpaceShooter extends Application {
             speedBar.setProgress(selectedShip.getSpeed() / 10.0);
             handleBar.setProgress(selectedShip.getHandling() / 0.22);
             magnetBar.setProgress(selectedShip.getMagnetRange() / 250.0);
+            speedPct.setText((int)(selectedShip.getSpeed() * 10) + "%");
+            handlePct.setText((int)(selectedShip.getHandling() / 0.22 * 100) + "%");
+            magnetPct.setText((int)(selectedShip.getMagnetRange() / 250.0 * 100) + "%");
             SoundManager.playClick();
         });
 
@@ -428,27 +506,16 @@ public class SpaceShooter extends Application {
             speedBar.setProgress(selectedShip.getSpeed() / 10.0);
             handleBar.setProgress(selectedShip.getHandling() / 0.22);
             magnetBar.setProgress(selectedShip.getMagnetRange() / 250.0);
+            speedPct.setText((int)(selectedShip.getSpeed() * 10) + "%");
+            handlePct.setText((int)(selectedShip.getHandling() / 0.22 * 100) + "%");
+            magnetPct.setText((int)(selectedShip.getMagnetRange() / 250.0 * 100) + "%");
             SoundManager.playClick();
         });
 
         shipSelectorBox.getChildren().addAll(prevBtn, shipNameLabel, nextBtn);
         leftBox.getChildren().addAll(previewTitle, previewCanvas, shipSelectorBox);
 
-        // Input Nama Pemain
-        HBox nameBox = new HBox(10);
-        nameBox.setAlignment(Pos.CENTER_LEFT);
-        Label pNameLbl = new Label("PILOT:");
-        pNameLbl.setFont(Font.font("Segoe UI", FontWeight.BOLD, 13));
-        pNameLbl.setTextFill(Color.web("#80d8ff"));
-
-        TextField nameInput = new TextField(currentPlayerName);
-        nameInput.setPrefWidth(260);
-        nameInput.setFont(Font.font("Segoe UI", FontWeight.BOLD, 14));
-        nameInput.setStyle("-fx-background-color: #0b1d3a; -fx-text-fill: white; -fx-border-color: #00e5ff; -fx-border-radius: 6;");
-
-        nameBox.getChildren().addAll(pNameLbl, nameInput);
-
-        rightBox.getChildren().addAll(nameBox, descLabel, statsBox, droneLabel, droneChoices);
+        rightBox.getChildren().addAll(nameBox, descLabel, statsBox, droneLabel, droneCardsBox);
         mainHangarBox.getChildren().addAll(leftBox, rightBox);
 
         // Tombol Aksi Bawah
@@ -470,7 +537,7 @@ public class SpaceShooter extends Application {
             showLeaderboardScreen();
         });
 
-        Button instructionsBtn = createSciFiButton("📜 PANDUAN", "#ab47bc", "#7b1fa2", 180);
+        Button instructionsBtn = createSciFiButton("📜 PANDUAN", "#ab47bc", "#7b1fa2", 170);
         instructionsBtn.setOnAction(e -> showInstructionsDialog());
 
         Button musicBtn = createSciFiButton("🎵 MUSIK: " + (SoundManager.isMusicEnabled() ? "ON" : "OFF"), "#ff9100", "#e65100", 160);
@@ -493,36 +560,65 @@ public class SpaceShooter extends Application {
     private void renderHangarShipPreview(GraphicsContext pgc, ShipType ship, double angle) {
         pgc.clearRect(0, 0, 340, 240);
 
-        // Platform Hologram Hangar
         double cx = 170;
-        double cy = 175;
-        double platW = 190;
-        double platH = 44;
+        double cy = 180;
+        double platW = 200;
+        double platH = 46;
 
-        pgc.setStroke(Color.web("#00e5ff", 0.65));
-        pgc.setLineWidth(2.0);
+        // 1. Grid Lantai Pedestal Hangar Hologram
+        pgc.setStroke(Color.color(0.0, 0.9, 1.0, 0.20));
+        pgc.setLineWidth(1.0);
+        for (int i = -4; i <= 4; i++) {
+            pgc.strokeLine(cx + i * 24, cy - 8, cx + i * 28, cy + 26);
+        }
+
+        // 2. Cincin Kompas Hologram Berputar
+        pgc.setStroke(Color.web("#00e5ff", 0.70));
+        pgc.setLineWidth(1.8);
         pgc.strokeOval(cx - platW / 2.0, cy - platH / 2.0, platW, platH);
 
-        double pulseW = platW + Math.sin(angle * 3.0) * 8.0;
-        double pulseH = platH + Math.sin(angle * 3.0) * 3.0;
-        pgc.setStroke(Color.web("#00e5ff", 0.25));
+        // Ticks Derajat di Sekeliling Cincin
+        for (int i = 0; i < 12; i++) {
+            double tickAng = angle * 0.4 + (i * Math.PI * 2 / 12);
+            double tx = cx + Math.cos(tickAng) * (platW * 0.48);
+            double ty = cy + Math.sin(tickAng) * (platH * 0.48);
+            pgc.setStroke(Color.color(0.0, 0.9, 1.0, 0.45));
+            pgc.strokeLine(tx, ty, tx + Math.cos(tickAng) * 4, ty + Math.sin(tickAng) * 2);
+        }
+
+        // Cincin Luar Berdenyut
+        double pulseW = platW + Math.sin(angle * 2.5) * 8.0;
+        double pulseH = platH + Math.sin(angle * 2.5) * 3.0;
+        pgc.setStroke(Color.web("#00e5ff", 0.30));
         pgc.strokeOval(cx - pulseW / 2.0, cy - pulseH / 2.0, pulseW, pulseH);
 
+        // 3. Berkas Proyeksi Laser Hologram Memancar ke Atas
         LinearGradient beamGrad = new LinearGradient(
-                0, cy, 0, 40, false, CycleMethod.NO_CYCLE,
-                new Stop(0.0, Color.color(0.0, 0.9, 1.0, 0.22)),
+                0, cy, 0, 30, false, CycleMethod.NO_CYCLE,
+                new Stop(0.0, Color.color(0.0, 0.9, 1.0, 0.25)),
+                new Stop(0.7, Color.color(0.0, 0.5, 1.0, 0.08)),
                 new Stop(1.0, Color.color(0, 0, 0, 0))
         );
         pgc.setFill(beamGrad);
         double[] bx = {cx - platW / 2.0, cx + platW / 2.0, cx + 55, cx - 55};
-        double[] by = {cy, cy, 35, 35};
+        double[] by = {cy, cy, 30, 30};
         pgc.fillPolygon(bx, by, 4);
 
-        double shipY = 115 + Math.sin(angle * 2.2) * 7.0;
-        double gentleRoll = Math.sin(angle * 0.8) * 0.14;
+        // Scanline Laser Horizontal Naik-Turun
+        double scanY = 55 + ((Math.sin(angle * 1.8) + 1.0) / 2.0) * 105;
+        pgc.setStroke(Color.color(0.4, 1.0, 1.0, 0.45));
+        pgc.setLineWidth(1.2);
+        pgc.strokeLine(cx - 75, scanY, cx + 75, scanY);
 
-        // Turntable 3D Penuh 360 Derajat
+        // 4. Model Pesawat 3D Turntable 360 Derajat
+        double shipY = 115 + Math.sin(angle * 2.0) * 6.0;
+        double gentleRoll = Math.sin(angle * 0.7) * 0.12;
         ShipRenderer.renderShipFull(pgc, ship, cx, shipY, 1.35, gentleRoll, -0.22, angle, angle, false);
+
+        // 5. Teks Telemetri Hologram Bawah
+        pgc.setFont(Font.font("Segoe UI", FontWeight.BOLD, 10));
+        pgc.setFill(Color.web("#00e5ff", 0.85));
+        pgc.fillText("HULL: 100% // WARP CORE: ONLINE", cx - 85, cy + 32);
     }
 
     private void startNewGame() {
@@ -750,90 +846,211 @@ public class SpaceShooter extends Application {
         gc.save();
 
         LevelData currentLvl = levelManager.getCurrentLevelData();
+        double hudTime = System.currentTimeMillis() / 1000.0;
 
-        // 1. Bar Panel Atas Glassmorphism
-        gc.setFill(Color.color(0.02, 0.05, 0.12, 0.88));
-        gc.fillRoundRect(16, 12, WIDTH - 32, 54, 16, 16);
-        gc.setStroke(Color.web("#00e5ff", 0.55));
-        gc.setLineWidth(1.4);
-        gc.strokeRoundRect(16, 12, WIDTH - 32, 54, 16, 16);
+        // --- 1. COCKPIT CANOPY CORNER BRACKETS (HUD JET TEMPUR) ---
+        gc.setStroke(Color.color(0.0, 0.9, 1.0, 0.35));
+        gc.setLineWidth(1.6);
+        // Kiri-Atas
+        gc.strokeLine(20, 20, 55, 20);
+        gc.strokeLine(20, 20, 20, 55);
+        // Kanan-Atas
+        gc.strokeLine(WIDTH - 20, 20, WIDTH - 55, 20);
+        gc.strokeLine(WIDTH - 20, 20, WIDTH - 20, 55);
+        // Kiri-Bawah
+        gc.strokeLine(20, HEIGHT - 20, 55, HEIGHT - 20);
+        gc.strokeLine(20, HEIGHT - 20, 20, HEIGHT - 55);
+        // Kanan-Bawah
+        gc.strokeLine(WIDTH - 20, HEIGHT - 20, WIDTH - 55, HEIGHT - 20);
+        gc.strokeLine(WIDTH - 20, HEIGHT - 20, WIDTH - 20, HEIGHT - 55);
 
-        // Pilot & Sektor Level (Kiri)
-        gc.setFont(Font.font("Segoe UI", FontWeight.BOLD, 13));
+        // --- 2. FLOATING GLASSMORPHIC HUD TOP BAR ---
+        double barX = 22;
+        double barY = 12;
+        double barW = WIDTH - 44;
+        double barH = 58;
+
+        // Latar Belakang Kaca Dark Sapphire Glass
+        LinearGradient barGrad = new LinearGradient(
+                barX, barY, barX + barW, barY, false, CycleMethod.NO_CYCLE,
+                new Stop(0.0, Color.color(0.02, 0.07, 0.20, 0.92)),
+                new Stop(0.5, Color.color(0.01, 0.04, 0.12, 0.95)),
+                new Stop(1.0, Color.color(0.03, 0.08, 0.22, 0.92))
+        );
+        gc.setFill(barGrad);
+        gc.fillRoundRect(barX, barY, barW, barH, 18, 18);
+
+        // Border Neon Luar & Dalam
+        gc.setStroke(Color.web("#00e5ff", 0.65));
+        gc.setLineWidth(1.5);
+        gc.strokeRoundRect(barX, barY, barW, barH, 18, 18);
+
+        gc.setStroke(Color.color(0.0, 0.9, 1.0, 0.15));
+        gc.setLineWidth(1.0);
+        gc.strokeRoundRect(barX + 3, barY + 3, barW - 6, barH - 6, 15, 15);
+
+        // --- 3. MODUL KIRI: PILOT & SEKTOR TELEMETRI ---
+        double beaconPulse = (Math.sin(hudTime * 4.0) + 1.0) / 2.0;
+        gc.setFill(Color.color(0.0, 0.9, 0.4, 0.4 + beaconPulse * 0.6));
+        gc.fillOval(38, 26, 8, 8); // Radar blip status dot
+
+        gc.setFont(Font.font("Segoe UI", FontWeight.BOLD, 12));
         gc.setFill(Color.web("#90caf9"));
-        gc.fillText("PILOT: " + currentPlayerName.toUpperCase(), 35, 34);
+        gc.fillText("PILOT // " + currentPlayerName.toUpperCase(), 52, 34);
 
-        gc.setFont(Font.font("Segoe UI", FontWeight.EXTRA_BOLD, 14));
+        gc.setFont(Font.font("Segoe UI", FontWeight.EXTRA_BOLD, 13));
         gc.setFill(Color.web("#ffd600"));
-        gc.fillText(currentLvl.getName() + " (" + currentLvl.getLevelNumber() + "/5)", 35, 52);
+        gc.fillText(currentLvl.getName().toUpperCase() + " [" + currentLvl.getLevelNumber() + "/5]", 38, 54);
 
-        // UTAMA: Total Galon & Level Target Meter (Tengah)
-        renderMiniGalonHUD(gc, 340, 20);
+        // Garis Pembatas Vertikal Kiri
+        gc.setStroke(Color.color(0.0, 0.9, 1.0, 0.25));
+        gc.strokeLine(260, 20, 260, 62);
+
+        // --- 4. MODUL TENGAH: GALON AIR KOSMIK & HYPERSPACE METER ---
+        renderAnimatedMiniGalonHUD(gc, 280, 18, hudTime);
+
         gc.setFont(Font.font("Segoe UI", FontWeight.EXTRA_BOLD, 22));
         gc.setFill(Color.web("#00e5ff"));
-        gc.fillText("TOTAL GALON: " + totalGalonCount, 368, 44);
+        gc.fillText("TOTAL GALON: " + totalGalonCount, 316, 44);
 
-        // Progress Bar Menuju Level Berikutnya
+        // Meter Hyperspace Warp Jump
         if (!levelManager.isFinalLevel()) {
-            double progW = 120;
-            double progH = 6;
-            double progX = 570;
-            double progY = 36;
+            double progW = 160;
+            double progH = 8;
+            double progX = 530;
+            double progY = 38;
             double ratio = Math.min(1.0, (double) levelGalonCount / currentLvl.getTargetGalon());
 
-            gc.setFill(Color.color(0, 0, 0, 0.6));
+            // Frame Background Bar
+            gc.setFill(Color.color(0, 0, 0, 0.7));
             gc.fillRoundRect(progX, progY, progW, progH, 4, 4);
-            gc.setFill(Color.web("#00e676"));
-            gc.fillRoundRect(progX, progY, progW * ratio, progH, 4, 4);
+            gc.setStroke(Color.color(0.0, 0.9, 1.0, 0.3));
+            gc.setLineWidth(1.0);
+            gc.strokeRoundRect(progX, progY, progW, progH, 4, 4);
 
-            gc.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 10));
+            // Isi Bar Berenergi
+            LinearGradient fillGrad = new LinearGradient(
+                    progX, 0, progX + progW, 0, false, CycleMethod.NO_CYCLE,
+                    new Stop(0.0, Color.web("#00b0ff")),
+                    new Stop(1.0, Color.web("#00e676"))
+            );
+            gc.setFill(fillGrad);
+            gc.fillRoundRect(progX + 1, progY + 1, (progW - 2) * ratio, progH - 2, 3, 3);
+
+            // Teks Status Warp
+            gc.setFont(Font.font("Segoe UI", FontWeight.BOLD, 10));
             gc.setFill(Color.web("#b0bec5"));
-            gc.fillText("WARP TARGET: " + levelGalonCount + "/" + currentLvl.getTargetGalon(), progX, progY - 4);
+            int pct = (int) (ratio * 100);
+            gc.fillText("WARP TARGET: " + levelGalonCount + "/" + currentLvl.getTargetGalon() + " (" + pct + "%)", progX, progY - 4);
         } else {
-            gc.setFont(Font.font("Segoe UI", FontWeight.BOLD, 12));
+            gc.setFont(Font.font("Segoe UI", FontWeight.EXTRA_BOLD, 13));
             gc.setFill(Color.web("#ff1744"));
-            gc.fillText("🔥 FINAL BOSS SECTOR 🔥", 570, 42);
+            gc.fillText("⚠️ FINAL BOSS SECTOR: MOTHERSHIP ⚠️", 520, 44);
         }
 
-        // Nyawa Pemain (3 Nyawa: Kanan)
-        int hp = (player != null) ? Math.max(0, player.getHealth()) : 0;
-        gc.setFont(Font.font("Segoe UI", FontWeight.BOLD, 13));
-        gc.setFill(hp == 1 ? Color.web("#ff1744") : Color.web("#cfd8dc"));
-        gc.fillText("NYAWA (" + hp + "/3):", 735, 44);
+        // Garis Pembatas Vertikal Kanan
+        gc.setStroke(Color.color(0.0, 0.9, 1.0, 0.25));
+        gc.strokeLine(715, 20, 715, 62);
 
+        // --- 5. MODUL KANAN: NYAWA (SHIELD CELLS) & SPEEDOMETER ---
+        int hp = (player != null) ? Math.max(0, player.getHealth()) : 0;
+        gc.setFont(Font.font("Segoe UI", FontWeight.BOLD, 11));
+        gc.setFill(hp == 1 ? Color.web("#ff1744") : Color.web("#90caf9"));
+        gc.fillText("SHIELD CELLS:", 732, 33);
+
+        // 3 Cybernetic Shield Cells
         for (int i = 0; i < 3; i++) {
-            double hX = 835 + (i * 24);
-            double hY = 28;
+            double cX = 732 + (i * 26);
+            double cY = 39;
+            double cW = 20;
+            double cH = 18;
+
             if (i < hp) {
-                gc.setFill(Color.web("#ff1744"));
-                gc.fillRoundRect(hX, hY, 18, 18, 6, 6);
+                // Sel Aktif Bercahaya Cyan/Hijau
+                LinearGradient shieldGrad = new LinearGradient(
+                        cX, cY, cX, cY + cH, false, CycleMethod.NO_CYCLE,
+                        new Stop(0.0, Color.WHITE),
+                        new Stop(0.3, Color.web("#00e5ff")),
+                        new Stop(1.0, Color.web("#0091ea"))
+                );
+                gc.setFill(shieldGrad);
+                gc.fillRoundRect(cX, cY, cW, cH, 6, 6);
+
                 gc.setStroke(Color.WHITE);
                 gc.setLineWidth(1.2);
-                gc.strokeRoundRect(hX, hY, 18, 18, 6, 6);
+                gc.strokeRoundRect(cX, cY, cW, cH, 6, 6);
             } else {
-                gc.setFill(Color.color(0.3, 0.3, 0.3, 0.4));
-                gc.fillRoundRect(hX, hY, 18, 18, 6, 6);
-                gc.setStroke(Color.color(0.5, 0.5, 0.5, 0.3));
-                gc.strokeRoundRect(hX, hY, 18, 18, 6, 6);
+                // Sel Rusak / Kosong
+                gc.setFill(Color.color(0.15, 0.15, 0.20, 0.6));
+                gc.fillRoundRect(cX, cY, cW, cH, 6, 6);
+
+                gc.setStroke(Color.color(1.0, 0.2, 0.2, 0.5));
+                gc.setLineWidth(1.2);
+                gc.strokeRoundRect(cX, cY, cW, cH, 6, 6);
+
+                // Tanda Silang Kecil
+                gc.setStroke(Color.web("#ff5252"));
+                gc.strokeLine(cX + 5, cY + 5, cX + cW - 5, cY + cH - 5);
+                gc.strokeLine(cX + cW - 5, cY + 5, cX + 5, cY + cH - 5);
             }
         }
 
-        // Bantuan Tombol Navigasi Maju-Mundur
-        gc.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 10));
-        gc.setFill(Color.web("#78909c"));
-        gc.fillText("[W/S] Maju-Mundur | [A/D] Belok", WIDTH - 180, 40);
-        gc.fillText("[SPACE] Tembak | [ESC] Pause", WIDTH - 180, 53);
+        // Throttle Speedometer
+        boolean fwd = (player != null && player.isMoveForward());
+        boolean bwd = (player != null && player.isMoveBackward());
+
+        gc.setFont(Font.font("Segoe UI", FontWeight.BOLD, 11));
+        if (fwd) {
+            gc.setFill(Color.web("#00e676"));
+            gc.fillText("[W] BOOST 110% ▲", 830, 44);
+        } else if (bwd) {
+            gc.setFill(Color.web("#ff9100"));
+            gc.fillText("[S] BRAKE 85% ▼", 830, 44);
+        } else {
+            gc.setFill(Color.web("#80d8ff"));
+            gc.fillText("[CRUISE] 100% ▶", 830, 44);
+        }
+
+        // Kontrol Bantuan
+        gc.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 9));
+        gc.setFill(Color.web("#607d8b"));
+        gc.fillText("[W/S] Maju/Mundur | [A/D] Belok", WIDTH - 190, 31);
+        gc.fillText("[SPACE] Tembak | [ESC] Pause", WIDTH - 190, 43);
+
+        // --- 6. PERINGATAN HULL INTEGRITY JIKA TINGGAL 1 NYAWA ---
+        if (hp == 1) {
+            double warnPulse = (Math.sin(hudTime * 8.0) + 1.0) / 2.0;
+            gc.setFill(Color.color(1.0, 0.1, 0.1, 0.15 * warnPulse));
+            gc.fillRect(0, 0, WIDTH, HEIGHT);
+
+            gc.setFont(Font.font("Segoe UI", FontWeight.EXTRA_BOLD, 14));
+            gc.setFill(Color.color(1.0, 0.2, 0.2, 0.7 + warnPulse * 0.3));
+            gc.fillText("⚠️ PERINGATAN: INTEGRITAS PERISAI KRITIS (1/3) ⚠️", WIDTH / 2.0 - 180, HEIGHT - 30);
+        }
 
         gc.restore();
     }
 
-    private void renderMiniGalonHUD(GraphicsContext gc, double gx, double gy) {
+    private void renderAnimatedMiniGalonHUD(GraphicsContext gc, double gx, double gy, double time) {
+        gc.save();
+        // Bodi Polikarbonat Transparan
         gc.setFill(Color.web("#0288d1"));
-        gc.fillRoundRect(gx, gy + 4, 16, 20, 4, 4);
+        gc.fillRoundRect(gx, gy + 5, 20, 24, 6, 6);
+
+        // Air Kosmik Mengombak
+        double wave = Math.sin(time * 5.0) * 1.5;
         gc.setFill(Color.web("#4fc3f7"));
-        gc.fillRect(gx + 2, gy + 7, 12, 14);
-        gc.setFill(Color.web("#d32f2f"));
-        gc.fillRect(gx + 4, gy, 8, 5);
+        gc.fillRect(gx + 2, gy + 10 + wave, 16, 17 - wave);
+
+        // Tutup Segel Merah Neon
+        gc.setFill(Color.web("#ff1744"));
+        gc.fillRoundRect(gx + 5, gy + 1, 10, 6, 2, 2);
+
+        // Aura Kapsul Air
+        gc.setStroke(Color.web("#e0f7fa"));
+        gc.setLineWidth(1.2);
+        gc.strokeRoundRect(gx, gy + 5, 20, 24, 6, 6);
+        gc.restore();
     }
 
     private void renderPauseOverlay() {
@@ -1027,33 +1244,39 @@ public class SpaceShooter extends Application {
     private Button createSciFiButton(String text, String primaryColor, String darkColor, double width) {
         Button btn = new Button(text);
         btn.setPrefWidth(width);
-        btn.setPrefHeight(42);
-        btn.setFont(Font.font("Segoe UI", FontWeight.BOLD, 14));
+        btn.setPrefHeight(44);
+        btn.setFont(Font.font("Segoe UI", FontWeight.EXTRA_BOLD, 13));
         String normalStyle =
                 "-fx-background-color: linear-gradient(to right, " + darkColor + ", " + primaryColor + ");"
                 + "-fx-text-fill: white;"
-                + "-fx-background-radius: 24;"
-                + "-fx-border-radius: 24;"
-                + "-fx-border-color: rgba(255, 255, 255, 0.4);"
+                + "-fx-background-radius: 22;"
+                + "-fx-border-radius: 22;"
+                + "-fx-border-color: rgba(255, 255, 255, 0.45);"
                 + "-fx-border-width: 1.5;"
                 + "-fx-cursor: hand;";
         String hoverStyle =
                 "-fx-background-color: linear-gradient(to right, " + primaryColor + ", #ffffff);"
                 + "-fx-text-fill: #000000;"
-                + "-fx-background-radius: 24;"
-                + "-fx-border-radius: 24;"
+                + "-fx-background-radius: 22;"
+                + "-fx-border-radius: 22;"
                 + "-fx-border-color: #ffffff;"
                 + "-fx-border-width: 2;"
                 + "-fx-cursor: hand;";
 
         btn.setStyle(normalStyle);
+        btn.setEffect(new DropShadow(10, Color.web(primaryColor, 0.45)));
+
         btn.setOnMouseEntered(e -> {
             btn.setStyle(hoverStyle);
-            btn.setEffect(new Glow(0.6));
+            btn.setScaleX(1.04);
+            btn.setScaleY(1.04);
+            btn.setEffect(new DropShadow(18, Color.web(primaryColor)));
         });
         btn.setOnMouseExited(e -> {
             btn.setStyle(normalStyle);
-            btn.setEffect(null);
+            btn.setScaleX(1.0);
+            btn.setScaleY(1.0);
+            btn.setEffect(new DropShadow(10, Color.web(primaryColor, 0.45)));
         });
 
         return btn;
@@ -1061,19 +1284,28 @@ public class SpaceShooter extends Application {
 
     private Button createMiniButton(String text) {
         Button btn = new Button(text);
-        btn.setPrefWidth(44);
-        btn.setPrefHeight(36);
-        btn.setFont(Font.font("Segoe UI", FontWeight.EXTRA_BOLD, 16));
+        btn.setPrefWidth(48);
+        btn.setPrefHeight(38);
+        btn.setFont(Font.font("Segoe UI", FontWeight.EXTRA_BOLD, 17));
         btn.setStyle(
-                "-fx-background-color: #0b1d3a;"
+                "-fx-background-color: #06152d;"
                 + "-fx-text-fill: #00e5ff;"
                 + "-fx-border-color: #00e5ff;"
-                + "-fx-border-radius: 8;"
-                + "-fx-background-radius: 8;"
+                + "-fx-border-radius: 10;"
+                + "-fx-background-radius: 10;"
                 + "-fx-cursor: hand;"
+                + "-fx-effect: dropshadow(three-pass-box, rgba(0, 229, 255, 0.35), 8, 0, 0, 0);"
         );
-        btn.setOnMouseEntered(e -> btn.setStyle("-fx-background-color: #00e5ff; -fx-text-fill: black; -fx-border-radius: 8; -fx-background-radius: 8;"));
-        btn.setOnMouseExited(e -> btn.setStyle("-fx-background-color: #0b1d3a; -fx-text-fill: #00e5ff; -fx-border-color: #00e5ff; -fx-border-radius: 8; -fx-background-radius: 8;"));
+        btn.setOnMouseEntered(e -> {
+            btn.setStyle("-fx-background-color: #00e5ff; -fx-text-fill: black; -fx-border-color: #ffffff; -fx-border-radius: 10; -fx-background-radius: 10;");
+            btn.setScaleX(1.06);
+            btn.setScaleY(1.06);
+        });
+        btn.setOnMouseExited(e -> {
+            btn.setStyle("-fx-background-color: #06152d; -fx-text-fill: #00e5ff; -fx-border-color: #00e5ff; -fx-border-radius: 10; -fx-background-radius: 10;");
+            btn.setScaleX(1.0);
+            btn.setScaleY(1.0);
+        });
         return btn;
     }
 
@@ -1081,18 +1313,26 @@ public class SpaceShooter extends Application {
         ProgressBar bar = new ProgressBar(progress);
         bar.setPrefWidth(160);
         bar.setPrefHeight(12);
-        bar.setStyle("-fx-accent: " + colorHex + ";");
+        bar.setStyle(
+                "-fx-accent: " + colorHex + ";"
+                + "-fx-control-inner-background: rgba(0, 0, 0, 0.65);"
+                + "-fx-border-color: " + colorHex + ";"
+                + "-fx-border-width: 1.0;"
+                + "-fx-border-radius: 4;"
+                + "-fx-background-radius: 4;"
+        );
         return bar;
     }
 
-    private HBox createStatRow(String labelText, ProgressBar bar) {
+    private HBox createStatRow(String labelText, ProgressBar bar, Label pctLabel) {
         HBox row = new HBox(10);
         row.setAlignment(Pos.CENTER_LEFT);
         Label lbl = new Label(labelText);
         lbl.setFont(Font.font("Segoe UI", FontWeight.BOLD, 11));
         lbl.setTextFill(Color.web("#90caf9"));
-        lbl.setPrefWidth(140);
-        row.getChildren().addAll(lbl, bar);
+        lbl.setPrefWidth(130);
+        pctLabel.setPrefWidth(45);
+        row.getChildren().addAll(lbl, bar, pctLabel);
         return row;
     }
 }
