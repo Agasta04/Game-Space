@@ -294,30 +294,10 @@ public class SpaceShooter extends Application {
     private void showHangarMenu() {
         gameRunning = false;
 
-        StackPane hangarRoot = new StackPane();
-
-        // 1. Background Planet Luar Angkasa Epik
-        try {
-            var bgStream = getClass().getResourceAsStream("/space_volcanic_planet.jpg");
-            if (bgStream != null) {
-                ImageView bgImgView = new ImageView(new Image(bgStream));
-                bgImgView.setFitWidth(WIDTH);
-                bgImgView.setFitHeight(HEIGHT);
-                bgImgView.setPreserveRatio(false);
-                hangarRoot.getChildren().add(bgImgView);
-            }
-        } catch (Exception ignored) {}
-
-        // 2. Lapisan Glassmorphism Gelap
-        Region darkTint = new Region();
-        darkTint.setStyle("-fx-background-color: rgba(4, 8, 22, 0.78);");
-        hangarRoot.getChildren().add(darkTint);
-
         VBox rootBox = new VBox(14);
         rootBox.setAlignment(Pos.CENTER);
-        rootBox.setStyle("-fx-background-color: transparent;");
+        rootBox.setStyle("-fx-background-color: linear-gradient(to bottom, #030713, #091a36, #140826);");
         rootBox.setPadding(new Insets(16));
-        hangarRoot.getChildren().add(rootBox);
 
         // Header Title
         Text titleText = new Text("SPACE INVADER 3D");
@@ -506,7 +486,7 @@ public class SpaceShooter extends Application {
 
         rootBox.getChildren().addAll(titleText, subText, mainHangarBox, buttonsBox);
 
-        Scene hangarScene = new Scene(hangarRoot, WIDTH, HEIGHT);
+        Scene hangarScene = new Scene(rootBox, WIDTH, HEIGHT);
         primaryStage.setScene(hangarScene);
     }
 
@@ -539,9 +519,10 @@ public class SpaceShooter extends Application {
         pgc.fillPolygon(bx, by, 4);
 
         double shipY = 115 + Math.sin(angle * 2.2) * 7.0;
-        double gentleRoll = Math.sin(angle) * 0.25;
+        double gentleRoll = Math.sin(angle * 0.8) * 0.14;
 
-        ShipRenderer.renderShip(pgc, ship, cx, shipY, 1.45, gentleRoll, 0.0, angle);
+        // Turntable 3D Penuh 360 Derajat
+        ShipRenderer.renderShipFull(pgc, ship, cx, shipY, 1.35, gentleRoll, -0.22, angle, angle, false);
     }
 
     private void startNewGame() {
