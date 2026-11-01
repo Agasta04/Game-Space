@@ -27,8 +27,8 @@ import java.util.*;
 
 /**
  * Game Space Invader 3D Profesional: Misi Pemburu UFO & Galon Kosmik.
- * Menggunakan Full 3D Chase Camera Perspective, Sistem Hangar Pemilihan Pesawat,
- * 5 Sektor Level Progresif dengan Hyperspace Warp Jump, dan Desain UI/UX Kelas Dunia.
+ * Menggunakan Full 3D Chase Camera Perspective dengan Kontrol Alami Maju-Mundur & Kiri-Kanan,
+ * Sistem Hangar Pemilihan Pesawat, 5 Sektor Level Progresif, dan Arena 3D Bebas Bug.
  */
 public class SpaceShooter extends Application {
 
@@ -50,7 +50,7 @@ public class SpaceShooter extends Application {
     private ShipType selectedShip = ShipType.FALCON_X1;
     private DroneType selectedDrone = DroneType.MAGNET_DRONE;
     private int selectedShipIndex = 0;
-    private double hangarRotAngle = 0.0;
+    private double hangarAnimAngle = 0.0;
 
     // Entitas Dunia 3D
     private PlayerShip3D player;
@@ -108,13 +108,14 @@ public class SpaceShooter extends Application {
 
         gameScene = new Scene(gameRoot, WIDTH, HEIGHT, Color.BLACK);
 
+        // KONTROL MAJU-MUNDUR (W/S) DAN KIRI-KANAN (A/D)
         gameScene.setOnKeyPressed(event -> {
             if (player == null) return;
             KeyCode code = event.getCode();
             if (code == KeyCode.A || code == KeyCode.LEFT) player.setMoveLeft(true);
             if (code == KeyCode.D || code == KeyCode.RIGHT) player.setMoveRight(true);
-            if (code == KeyCode.W || code == KeyCode.UP) player.setMoveUp(true);
-            if (code == KeyCode.S || code == KeyCode.DOWN) player.setMoveDown(true);
+            if (code == KeyCode.W || code == KeyCode.UP) player.setMoveForward(true);     // MAJU KE DEPAN
+            if (code == KeyCode.S || code == KeyCode.DOWN) player.setMoveBackward(true);  // MUNDUR / REM
             if (code == KeyCode.SPACE && gameRunning && !isPaused && !inLevelTransition) {
                 player.shoot(lasers);
             }
@@ -131,8 +132,8 @@ public class SpaceShooter extends Application {
             KeyCode code = event.getCode();
             if (code == KeyCode.A || code == KeyCode.LEFT) player.setMoveLeft(false);
             if (code == KeyCode.D || code == KeyCode.RIGHT) player.setMoveRight(false);
-            if (code == KeyCode.W || code == KeyCode.UP) player.setMoveUp(false);
-            if (code == KeyCode.S || code == KeyCode.DOWN) player.setMoveDown(false);
+            if (code == KeyCode.W || code == KeyCode.UP) player.setMoveForward(false);
+            if (code == KeyCode.S || code == KeyCode.DOWN) player.setMoveBackward(false);
         });
 
         gameLoop = new AnimationTimer() {
@@ -149,8 +150,10 @@ public class SpaceShooter extends Application {
                     return;
                 }
 
-                // Update Background & Kamera
-                camera.update(player != null ? player.getX() : 0, player != null ? player.getY() : 0);
+                // Update Kamera Mengikuti Posisi Pesawat (X, Y, dan Z Maju-Mundur)
+                if (player != null) {
+                    camera.update(player.getX(), player.getY(), player.getZ());
+                }
                 spaceBackground.update();
 
                 // Transisi Warp Speed Naik Level
@@ -164,7 +167,7 @@ public class SpaceShooter extends Application {
 
                 LevelData currentLevel = levelManager.getCurrentLevelData();
 
-                // Spawning Objek 3D dari Horizon (hanya jika tidak dalam transisi warp)
+                // Spawning Objek 3D dari Horizon
                 if (!inLevelTransition) {
                     // Spawn UFO Musuh
                     long enemyInterval = (long) (currentLevel.getEnemySpawnInterval() * 1_000_000_000L);
@@ -173,21 +176,21 @@ public class SpaceShooter extends Application {
                         lastEnemySpawn = now;
                     }
 
-                    // Spawn Galon Kosmik 3D (Banyak galon untuk dikumpulkan)
-                    if (now - lastGalonSpawn > 1_500_000_000L) {
+                    // Spawn Galon Kosmik 3D
+                    if (now - lastGalonSpawn > 1_400_000_000L) {
                         spawnGalon3D();
                         lastGalonSpawn = now;
                     }
 
                     // Spawn Asteroid jika level mengizinkan
-                    if (currentLevel.isSpawnAsteroids() && now - lastAsteroidSpawn > 2_400_000_000L) {
+                    if (currentLevel.isSpawnAsteroids() && now - lastAsteroidSpawn > 2_200_000_000L) {
                         spawnAsteroid3D();
                         lastAsteroidSpawn = now;
                     }
 
                     // Final Boss di Level 5
                     if (currentLevel.isBossLevel() && worldEntities.stream().noneMatch(e -> e instanceof BossMothership3D)) {
-                        BossMothership3D boss = new BossMothership3D(0, -60, 950);
+                        BossMothership3D boss = new BossMothership3D(0, 60, 950);
                         worldEntities.add(boss);
                         SoundManager.playBossAlert();
                         spaceBackground.triggerScreenShake(18.0);
@@ -199,7 +202,7 @@ public class SpaceShooter extends Application {
                 gc.save();
                 gc.translate(spaceBackground.getShakeX(), spaceBackground.getShakeY());
 
-                // 1. Render Background Luar Angkasa 3D
+                // 1. Render Background Luar Angkasa 3D dengan Perspective Grid Lantai
                 spaceBackground.render(gc, camera);
 
                 // 2. Partikel Mesin Pemain
@@ -242,7 +245,6 @@ public class SpaceShooter extends Application {
                 worldEntities.addAll(newEntities);
                 newEntities.clear();
 
-                // Masukkan player ke daftar render untuk di-sort kedalamannya secara alami
                 List<Entity3D> renderList = new ArrayList<>(worldEntities);
                 if (player != null && !player.isDead()) {
                     renderList.add(player);
@@ -288,9 +290,6 @@ public class SpaceShooter extends Application {
         };
     }
 
-    /**
-     * Tampilan Menu Hangar 3D Interaktif untuk memilih pesawat, drone, dan input nama.
-     */
     private void showHangarMenu() {
         gameRunning = false;
 
@@ -309,7 +308,6 @@ public class SpaceShooter extends Application {
         subText.setFont(Font.font("Segoe UI", FontWeight.BOLD, 15));
         subText.setFill(Color.web("#ffd600"));
 
-        // Panel Hangar Utama (Kiri: Preview Pesawat 3D, Kanan: Info & Opsi)
         HBox mainHangarBox = new HBox(24);
         mainHangarBox.setAlignment(Pos.CENTER);
         mainHangarBox.setMaxWidth(880);
@@ -321,8 +319,8 @@ public class SpaceShooter extends Application {
         AnimationTimer turntableTimer = new AnimationTimer() {
             @Override
             public void handle(long now) {
-                hangarRotAngle += 0.025;
-                renderHangarShipPreview(pgc, selectedShip, hangarRotAngle);
+                hangarAnimAngle += 0.035;
+                renderHangarShipPreview(pgc, selectedShip, hangarAnimAngle);
             }
         };
         turntableTimer.start();
@@ -406,7 +404,6 @@ public class SpaceShooter extends Application {
             droneChoices.getChildren().add(rb);
         }
 
-        // Listener Tombol Ganti Pesawat
         prevBtn.setOnAction(e -> {
             ShipType[] types = ShipType.values();
             selectedShipIndex = (selectedShipIndex - 1 + types.length) % types.length;
@@ -501,18 +498,15 @@ public class SpaceShooter extends Application {
         double platW = 190;
         double platH = 44;
 
-        // Cincin Basis Hologram
         pgc.setStroke(Color.web("#00e5ff", 0.65));
         pgc.setLineWidth(2.0);
         pgc.strokeOval(cx - platW / 2.0, cy - platH / 2.0, platW, platH);
 
-        // Cincin Luar Berdenyut
         double pulseW = platW + Math.sin(angle * 3.0) * 8.0;
         double pulseH = platH + Math.sin(angle * 3.0) * 3.0;
         pgc.setStroke(Color.web("#00e5ff", 0.25));
         pgc.strokeOval(cx - pulseW / 2.0, cy - pulseH / 2.0, pulseW, pulseH);
 
-        // Sorotan Cahaya Kolom Hologram
         LinearGradient beamGrad = new LinearGradient(
                 0, cy, 0, 40, false, CycleMethod.NO_CYCLE,
                 new Stop(0.0, Color.color(0.0, 0.9, 1.0, 0.22)),
@@ -523,7 +517,6 @@ public class SpaceShooter extends Application {
         double[] by = {cy, cy, 35, 35};
         pgc.fillPolygon(bx, by, 4);
 
-        // Render Model Pesawat 3D Melayang Menggunakan ShipRenderer Presisi
         double shipY = 115 + Math.sin(angle * 2.2) * 7.0;
         double gentleRoll = Math.sin(angle) * 0.25;
 
@@ -548,7 +541,6 @@ public class SpaceShooter extends Application {
         LevelData lvl = levelManager.getCurrentLevelData();
         spaceBackground.setLevelColors(lvl.getNebulaColor1(), lvl.getNebulaColor2());
 
-        // Inisialisasi Pesawat Pemain sesuai pilihan di Hangar
         player = new PlayerShip3D(selectedShip, selectedDrone);
 
         gameRunning = true;
@@ -559,22 +551,22 @@ public class SpaceShooter extends Application {
     }
 
     private void spawnUfo3D(double speedZ) {
-        double spawnX = (random.nextDouble() * 2.0 - 1.0) * 400.0;
-        double spawnY = (random.nextDouble() * 2.0 - 1.0) * 200.0;
+        double spawnX = (random.nextDouble() * 2.0 - 1.0) * 340.0;
+        double spawnY = 60.0 + random.nextDouble() * 25.0; // Sejajar zona terbang pemain
         worldEntities.add(new UfoEnemy3D(spawnX, spawnY, 1650.0, speedZ));
     }
 
     private void spawnGalon3D() {
-        double spawnX = (random.nextDouble() * 2.0 - 1.0) * 380.0;
-        double spawnY = (random.nextDouble() * 2.0 - 1.0) * 190.0;
+        double spawnX = (random.nextDouble() * 2.0 - 1.0) * 320.0;
+        double spawnY = 60.0 + random.nextDouble() * 20.0; // Sejajar zona terbang pemain
         boolean golden = (random.nextDouble() < 0.20);
         worldEntities.add(new Galon3D(spawnX, spawnY, 1650.0, 4.2, golden));
     }
 
     private void spawnAsteroid3D() {
-        double spawnX = (random.nextDouble() * 2.0 - 1.0) * 420.0;
-        double spawnY = (random.nextDouble() * 2.0 - 1.0) * 220.0;
-        worldEntities.add(new Asteroid3D(spawnX, spawnY, 1700.0, 3.5));
+        double spawnX = (random.nextDouble() * 2.0 - 1.0) * 350.0;
+        double spawnY = 65.0 + random.nextDouble() * 25.0;
+        worldEntities.add(new Asteroid3D(spawnX, spawnY, 1700.0, 3.6));
     }
 
     private void handlePhysicsAndCollisions() {
@@ -585,25 +577,25 @@ public class SpaceShooter extends Application {
         double shipZ = player.getZ();
         double magnetDist = player.getMagnetRange();
 
-        // 1. Tarikan Magnet Gravitasi & Pengumpulan Galon
+        // 1. Tarikan Magnet Gravitasi & Pengumpulan Galon (Maju mengejar galon)
         for (Entity3D entity : worldEntities) {
             if (entity instanceof Galon3D && !entity.isDead()) {
                 Galon3D galon = (Galon3D) entity;
 
-                // Efek Magnet jika dalam jangkauan
                 double dx = shipX - galon.getX();
                 double dy = shipY - galon.getY();
                 double dz = shipZ - galon.getZ();
                 double dist3D = Math.sqrt(dx * dx + dy * dy + dz * dz);
 
+                // Magnet menyedot galon ke arah posisi pemain
                 if (dist3D < magnetDist) {
-                    galon.attractTowards(shipX, shipY, shipZ, 0.08);
+                    galon.attractTowards(shipX, shipY, shipZ, 0.10);
                 }
 
-                // Ambil Galon jika mencapai pesawat pada kedalaman yang sama (toleransi Z=50)
-                if (Math.abs(galon.getZ() - shipZ) < 55.0) {
+                // Ambil galon jika berada di zona fisik pesawat (Z toleransi 48)
+                if (Math.abs(galon.getZ() - shipZ) < 48.0) {
                     double dist2D = Math.sqrt(dx * dx + dy * dy);
-                    if (dist2D < 50.0) {
+                    if (dist2D < 48.0) {
                         collectGalon3D(galon);
                     }
                 }
@@ -645,7 +637,6 @@ public class SpaceShooter extends Application {
                         }
                     }
                 } else if (entity instanceof Galon3D) {
-                    // Opsional tembak galon untuk ambil langsung
                     Galon3D g = (Galon3D) entity;
                     if (laser.checkCollision3D(g, 45.0)) {
                         laser.setDead(true);
@@ -661,11 +652,11 @@ public class SpaceShooter extends Application {
 
             if (entity instanceof UfoEnemy3D) {
                 UfoEnemy3D ufo = (UfoEnemy3D) entity;
-                if (Math.abs(ufo.getZ() - shipZ) < 45.0) {
+                if (Math.abs(ufo.getZ() - shipZ) < 42.0) {
                     double dx = shipX - ufo.getX();
                     double dy = shipY - ufo.getY();
                     double dist = Math.sqrt(dx * dx + dy * dy);
-                    if (dist < 46.0) {
+                    if (dist < 44.0) {
                         ufo.setDead(true);
                         ufo.spawnExplosion(particles, camera);
                         boolean damaged = player.takeDamage();
@@ -678,10 +669,10 @@ public class SpaceShooter extends Application {
                 }
             } else if (entity instanceof Asteroid3D) {
                 Asteroid3D ast = (Asteroid3D) entity;
-                if (Math.abs(ast.getZ() - shipZ) < 45.0) {
+                if (Math.abs(ast.getZ() - shipZ) < 42.0) {
                     double dx = shipX - ast.getX();
                     double dy = shipY - ast.getY();
-                    if (Math.sqrt(dx * dx + dy * dy) < 44.0) {
+                    if (Math.sqrt(dx * dx + dy * dy) < 42.0) {
                         ast.setDead(true);
                         boolean damaged = player.takeDamage();
                         if (damaged) {
@@ -696,10 +687,10 @@ public class SpaceShooter extends Application {
 
         // 4. Tabrakan Peluru Plasma Musuh vs Pesawat Pemain
         for (EnemyPlasma3D plasma : enemyPlasmas) {
-            if (!plasma.isDead() && Math.abs(plasma.getZ() - shipZ) < 40.0) {
+            if (!plasma.isDead() && Math.abs(plasma.getZ() - shipZ) < 38.0) {
                 double dx = shipX - plasma.getX();
                 double dy = shipY - plasma.getY();
-                if (Math.sqrt(dx * dx + dy * dy) < 38.0) {
+                if (Math.sqrt(dx * dx + dy * dy) < 36.0) {
                     plasma.setDead(true);
                     boolean damaged = player.takeDamage();
                     if (damaged) {
@@ -738,7 +729,7 @@ public class SpaceShooter extends Application {
             if (advanced) {
                 levelGalonCount = 0;
                 inLevelTransition = true;
-                warpTimer = 3.0; // Durasi efek warp 3 detik
+                warpTimer = 3.0;
 
                 SoundManager.playWarp();
                 SoundManager.playLevelUp();
@@ -753,9 +744,6 @@ public class SpaceShooter extends Application {
         }
     }
 
-    /**
-     * Render HUD Sci-Fi Profesional di bagian atas layar.
-     */
     private void renderProfessionalHUD() {
         gc.save();
 
@@ -828,10 +816,11 @@ public class SpaceShooter extends Application {
             }
         }
 
-        // Bantuan Tombol
-        gc.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 11));
+        // Bantuan Tombol Navigasi Maju-Mundur
+        gc.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 10));
         gc.setFill(Color.web("#78909c"));
-        gc.fillText("[ESC] Pause | [M] Audio", WIDTH - 165, 44);
+        gc.fillText("[W/S] Maju-Mundur | [A/D] Belok", WIDTH - 180, 40);
+        gc.fillText("[SPACE] Tembak | [ESC] Pause", WIDTH - 180, 53);
 
         gc.restore();
     }
@@ -1014,20 +1003,21 @@ public class SpaceShooter extends Application {
     private void showInstructionsDialog() {
         Alert alert = new Alert(Alert.AlertType.INFORMATION);
         alert.setTitle("Petunjuk Space Invader 3D");
-        alert.setHeaderText("🚀 PANDUAN MISI LUAR ANGKASA 3D (5 SEKTOR)");
+        alert.setHeaderText("🚀 PANDUAN MISI LUAR ANGKASA 3D (KONTROL ALAMI)");
         alert.setContentText(
-                "🎮 KONTROL PERMAINAN:\n"
-                + "• [W, A, S, D] atau [Panah]: Manuver Pesawat 3D (Naik, Turun, Belok Roll Kiri & Kanan)\n"
-                + "• [SPASI]: Tembak Laser 3D ke Horizon (Bisa juga untuk mengambil galon jarak jauh)\n"
+                "🎮 KONTROL 3D ALAMI (FORWARD/BACKWARD & STEER):\n"
+                + "• [W] atau [Panah Atas]: MAJU KE DEPAN (Akselerasi mengejar Galon)\n"
+                + "• [S] atau [Panah Bawah]: MUNDUR / REM (Melambat menghindari tabrakan UFO)\n"
+                + "• [A / D] atau [Panah Kiri/Kanan]: BELOK KIRI & KANAN (Steer & Banking Roll)\n"
+                + "• [SPASI]: Tembak Laser 3D ke Horizon\n"
                 + "• [M]: Menyalakan / Mematikan Musik Latar (Mute/Unmute)\n"
                 + "• [ESC]: Jeda Permainan (Pause/Resume)\n\n"
-                + "💧 ATURAN MISI & SISTEM LEVEL:\n"
+                + "💧 ATURAN MISI:\n"
                 + "1. Fokus Utama: Kumpulkan Galon Kosmik 💧 sebanyak mungkin!\n"
-                + "2. Anda TIDAK HARUS membunuh semua UFO. Boleh menembaknya atau menghindarinya!\n"
-                + "3. UFO yang melayang melewati pemain tidak mengurangi nyawa.\n"
+                + "2. Anda bebas menembak UFO atau menghindarinya (menekan S untuk rem atau A/D untuk belok).\n"
+                + "3. UFO yang melayang lewat ke belakang tidak mengurangi nyawa.\n"
                 + "4. Roket memiliki 3 NYAWA. Jika bertabrakan langsung dengan UFO / Asteroid, nyawa hilang 1!\n"
-                + "5. Tiga kali tabrakan = Pesawat hancur (Game Over).\n"
-                + "6. Kumpulkan target galon untuk memicu HYPERSPACE WARP JUMP ke Sektor Level berikutnya hingga Level 5 (Final Boss)!"
+                + "5. Kumpulkan target galon untuk memicu HYPERSPACE WARP JUMP menuju Sektor berikutnya!"
         );
         alert.showAndWait();
     }

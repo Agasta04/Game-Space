@@ -5,8 +5,7 @@ import javafx.scene.paint.*;
 import javafx.scene.shape.ArcType;
 
 /**
- * Galon Air Mineral Kosmik 3D yang melayang dari horizon mendekati pemain.
- * Mendukung rotasi 3D dan efek magnet gravitasi ke pesawat pemain.
+ * Galon Air Mineral Kosmik 3D yang melayang dari horizon mendekati pemain di lintasan.
  */
 public class Galon3D extends Entity3D {
     private final boolean golden;
@@ -15,7 +14,7 @@ public class Galon3D extends Entity3D {
     private double bobbingOffset;
 
     public Galon3D(double x, double y, double z, double speedZ, boolean golden) {
-        super(x, y, z, 34.0);
+        super(x, y, z, 36.0);
         this.speedZ = speedZ;
         this.golden = golden;
         this.rotAngle = Math.random() * Math.PI * 2;
@@ -37,16 +36,13 @@ public class Galon3D extends Entity3D {
     public void update() {
         z -= speedZ;
         rotAngle += 0.05;
-        bobbingOffset = Math.sin(rotAngle * 2.0) * 12.0;
+        bobbingOffset = Math.sin(rotAngle * 2.0) * 8.0;
 
         if (z < 25) {
             dead = true;
         }
     }
 
-    /**
-     * Efek magnet hisap galon ke arah posisi pesawat pemain jika berada dalam jangkauan.
-     */
     public void attractTowards(double targetX, double targetY, double targetZ, double pullSpeed) {
         double dx = targetX - this.x;
         double dy = targetY - this.y;
@@ -69,7 +65,22 @@ public class Galon3D extends Entity3D {
 
         gc.save();
 
-        // 1. Aura Cahaya Neon 3D
+        // 1. Bayangan 3D di Lantai Grid Kosmik (Y = 190)
+        double floorY = 190.0;
+        double shadowX = camera.projectX(this.x, this.z);
+        double shadowY = camera.projectY(floorY, this.z);
+        double shadowW = gw * 0.85;
+        double shadowH = gh * 0.3;
+
+        RadialGradient shadowGrad = new RadialGradient(
+                0, 0, shadowX, shadowY, shadowW / 2.0, false, CycleMethod.NO_CYCLE,
+                new Stop(0.0, Color.color(0, 0, 0, 0.45)),
+                new Stop(1.0, Color.color(0, 0, 0, 0))
+        );
+        gc.setFill(shadowGrad);
+        gc.fillOval(shadowX - shadowW / 2.0, shadowY - shadowH / 2.0, shadowW, shadowH);
+
+        // 2. Aura Cahaya Neon 3D
         Color auraCore = golden ? Color.color(1.0, 0.85, 0.1, 0.6) : Color.color(0.2, 0.7, 1.0, 0.45);
         RadialGradient aura = new RadialGradient(
                 0, 0, sx, sy, gw * 1.1, false, CycleMethod.NO_CYCLE,
@@ -79,7 +90,7 @@ public class Galon3D extends Entity3D {
         gc.setFill(aura);
         gc.fillOval(sx - gw * 1.1, sy - gh * 0.9, gw * 2.2, gh * 1.8);
 
-        // 2. Badan Galon 3D (Silinder Polycarbonate)
+        // 3. Badan Galon 3D (Silinder Polycarbonate)
         double drawX = sx - gw / 2.0;
         double drawY = sy - gh / 2.0;
 
@@ -89,7 +100,7 @@ public class Galon3D extends Entity3D {
                     drawX, 0, drawX + gw, 0, false, CycleMethod.NO_CYCLE,
                     new Stop(0.0, Color.web("#e65100")),
                     new Stop(0.25, Color.web("#ffb300")),
-                    new Stop(0.5, Color.web("#fff9c4")), // Specular highlight emas
+                    new Stop(0.5, Color.web("#fff9c4")),
                     new Stop(0.8, Color.web("#ffa000")),
                     new Stop(1.0, Color.web("#ff6f00"))
             );
@@ -98,7 +109,7 @@ public class Galon3D extends Entity3D {
                     drawX, 0, drawX + gw, 0, false, CycleMethod.NO_CYCLE,
                     new Stop(0.0, Color.web("#0e5a8a")),
                     new Stop(0.25, Color.web("#42b6f5")),
-                    new Stop(0.5, Color.web("#e1f5fe")), // Specular highlight plastik
+                    new Stop(0.5, Color.web("#e1f5fe")),
                     new Stop(0.8, Color.web("#299edb")),
                     new Stop(1.0, Color.web("#0d4870"))
             );
@@ -106,7 +117,7 @@ public class Galon3D extends Entity3D {
         gc.setFill(bodyGrad);
         gc.fillRoundRect(drawX, drawY + 16 * scale, gw, gh - 18 * scale, 12 * scale, 12 * scale);
 
-        // Garis Lekukan Khas Galon
+        // Garis Lekukan Ring Galon
         gc.setStroke(Color.color(1, 1, 1, 0.55));
         gc.setLineWidth(1.8 * scale);
         gc.strokeLine(drawX + 4 * scale, drawY + 28 * scale, drawX + gw - 4 * scale, drawY + 28 * scale);
@@ -141,7 +152,7 @@ public class Galon3D extends Entity3D {
         gc.setFill(neckGrad);
         gc.fillRoundRect(drawX + 14 * scale, drawY + 6 * scale, gw - 28 * scale, 12 * scale, 5 * scale, 5 * scale);
 
-        // Tutup Segel Galon (Merah Khas)
+        // Tutup Segel Merah
         gc.setFill(Color.web("#d32f2f"));
         gc.fillRoundRect(drawX + 12 * scale, drawY, gw - 24 * scale, 9 * scale, 4 * scale, 4 * scale);
 
@@ -153,4 +164,3 @@ public class Galon3D extends Entity3D {
         gc.restore();
     }
 }
-

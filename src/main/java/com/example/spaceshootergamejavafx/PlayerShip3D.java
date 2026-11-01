@@ -7,8 +7,9 @@ import java.util.List;
 import java.util.Random;
 
 /**
- * Pesawat Pemain dalam Perspektif 3D Chase Camera View.
- * Menggunakan ShipRenderer profesional untuk render presisi tanpa distorsi.
+ * Pesawat Pemain dalam Ruang 3D dengan Kontrol Alami:
+ * - A / D: Bergerak ke KIRI / KANAN (Steer & Banking Roll)
+ * - W / S: Bergerak MAJU / MUNDUR (Throttle Forward & Reverse / Brake di Sumbu Z)
  */
 public class PlayerShip3D extends Entity3D {
 
@@ -17,22 +18,25 @@ public class PlayerShip3D extends Entity3D {
 
     private boolean moveLeft;
     private boolean moveRight;
-    private boolean moveUp;
-    private boolean moveDown;
+    private boolean moveForward;
+    private boolean moveBackward;
 
     private double currentRoll = 0.0;
-    private double currentPitch = 0.0;
     private double engineAnim = 0.0;
     private double droneAnim = 0.0;
+    private double hoverAnim = 0.0;
 
     private int health = 3;
     private final int maxHealth = 3;
     private double invulnerableTimer = 0.0;
 
+    // Kecepatan maju mundur relatif
+    private double forwardSpeed = 0.0;
+
     private final Random random = new Random();
 
     public PlayerShip3D(ShipType shipType, DroneType droneType) {
-        super(0, 115, 110, 36.0); // Z=110 dekat di depan kamera
+        super(0, 75, 120, 36.0); // Ketinggian Y=75 stabil di atas lantai kosmik
         this.shipType = shipType;
         this.droneType = droneType;
     }
@@ -82,7 +86,7 @@ public class PlayerShip3D extends Entity3D {
     public void update() {
         double speed = shipType.getSpeed();
 
-        // Kontrol X (Kiri-Kanan)
+        // 1. KONTROL KIRI - KANAN (Sumbu X)
         double targetRoll = 0.0;
         if (moveLeft) {
             x -= speed;
@@ -93,29 +97,35 @@ public class PlayerShip3D extends Entity3D {
             targetRoll = 0.55;
         }
 
-        // Kontrol Y (Atas-Bawah)
-        double targetPitch = 0.0;
-        if (moveUp) {
-            y -= speed * 0.85;
-            targetPitch = -0.3;
-        }
-        if (moveDown) {
-            y += speed * 0.85;
-            targetPitch = 0.3;
-        }
-
-        // Batas gerak 3D di layar
+        // Batas lintasan kiri-kanan
         if (x < -360) x = -360;
         if (x > 360) x = 360;
-        if (y < -160) y = -160;
-        if (y > 165) y = 165;
 
-        // Smooth Interpolation
+        // 2. KONTROL MAJU - MUNDUR (Sumbu Z)
+        double targetSpeedZ = 0.0;
+        if (moveForward) {
+            targetSpeedZ = speed * 0.95; // Maju ke depan (Z bertambah)
+        }
+        if (moveBackward) {
+            targetSpeedZ = -speed * 0.85; // Mundur / Mengerem (Z berkurang)
+        }
+
+        forwardSpeed += (targetSpeedZ - forwardSpeed) * 0.25;
+        z += forwardSpeed;
+
+        // Batas manuver maju-mundur di arena 3D (antara Z=60 hingga Z=320)
+        if (z < 60) z = 60;
+        if (z > 320) z = 320;
+
+        // 3. Ketinggian Y Melayang Stabil (Hovering Bobbing Lembut)
+        hoverAnim += 0.06;
+        y = 75.0 + Math.sin(hoverAnim) * 4.0;
+
+        // Smooth Interpolation Roll
         double handling = shipType.getHandling();
         currentRoll += (targetRoll - currentRoll) * handling;
-        currentPitch += (targetPitch - currentPitch) * handling;
 
-        engineAnim += 0.35;
+        engineAnim += (moveForward ? 0.6 : 0.35);
         droneAnim += 0.05;
 
         if (invulnerableTimer > 0) {
@@ -133,9 +143,10 @@ public class PlayerShip3D extends Entity3D {
 
         double[] engineXs = {sx - spacing + currentRoll * 6, sx + spacing + currentRoll * 6};
 
+        double extraFlame = moveForward ? 3.0 : 0.0;
         for (double eX : engineXs) {
             double pVx = (random.nextDouble() - 0.5) * 1.5 - currentRoll * 3.0;
-            double pVy = 3.5 + random.nextDouble() * 3.5;
+            double pVy = (3.5 + extraFlame) + random.nextDouble() * 3.5;
             Color flameCol = (random.nextDouble() < 0.6)
                     ? shipType.getPrimaryColor()
                     : Color.web("#ffffff");
@@ -145,7 +156,7 @@ public class PlayerShip3D extends Entity3D {
 
     @Override
     public void render(GraphicsContext gc, Camera3D camera) {
-        // Kedip saat kebal setelah terkena tabrakan
+        // Kedip saat kebal
         if (invulnerableTimer > 0 && ((int) (invulnerableTimer * 20) % 2 == 0)) {
             return;
         }
@@ -154,18 +165,35 @@ public class PlayerShip3D extends Entity3D {
         double sx = camera.projectX(this.x, this.z);
         double sy = camera.projectY(this.y, this.z);
 
-        // 1. Crosshair Bidik 3D di Horizon
+        // 1. Bayangan 3D di Lantai Grid Kosmik (Y = 190)
+        double floorY = 190.0;
+        double shadowX = camera.projectX(this.x, this.z);
+        double shadowY = camera.projectY(floorY, this.z);
+        double shadowW = 54.0 * scale;
+        double shadowH = 16.0 * scale;
+
+        gc.save();
+        RadialGradient shadowGrad = new RadialGradient(
+                0, 0, shadowX, shadowY, shadowW / 2.0, false, CycleMethod.NO_CYCLE,
+                new Stop(0.0, Color.color(0, 0, 0, 0.55)),
+                new Stop(1.0, Color.color(0, 0, 0, 0))
+        );
+        gc.setFill(shadowGrad);
+        gc.fillOval(shadowX - shadowW / 2.0, shadowY - shadowH / 2.0, shadowW, shadowH);
+        gc.restore();
+
+        // 2. Crosshair Bidik 3D di Horizon
         renderCrosshair3D(gc, camera);
 
-        // 2. Drone Pendukung
+        // 3. Drone Pendukung
         if (droneType != null) {
             renderCompanionDrone(gc, sx, sy, scale);
         }
 
-        // 3. Render Pesawat Pemain Menggunakan ShipRenderer Solid
-        ShipRenderer.renderShip(gc, shipType, sx, sy, scale, currentRoll, currentPitch, engineAnim);
+        // 4. Render Pesawat Menggunakan ShipRenderer Solid
+        ShipRenderer.renderShip(gc, shipType, sx, sy, scale, currentRoll, 0.0, engineAnim);
 
-        // 4. Perisai Pelindung (Aegis Drone atau saat kebal)
+        // 5. Perisai Pelindung
         if (droneType == DroneType.SHIELD_DRONE || invulnerableTimer > 0) {
             gc.save();
             gc.setStroke(Color.color(0.0, 0.9, 1.0, 0.5 + Math.sin(engineAnim) * 0.25));
@@ -176,9 +204,9 @@ public class PlayerShip3D extends Entity3D {
     }
 
     private void renderCrosshair3D(GraphicsContext gc, Camera3D camera) {
-        double targetZ = 700.0;
-        double cx = camera.projectX(this.x * 0.6, targetZ);
-        double cy = camera.projectY(this.y * 0.6, targetZ);
+        double targetZ = 650.0;
+        double cx = camera.projectX(this.x * 0.7, targetZ);
+        double cy = camera.projectY(this.y * 0.7, targetZ);
         double cSize = 18.0;
 
         gc.save();
@@ -221,11 +249,11 @@ public class PlayerShip3D extends Entity3D {
     public void shoot(List<Laser3D> lasers) {
         double leftWingX = this.x - 28;
         double rightWingX = this.x + 28;
-        double startY = this.y + 4;
+        double startY = this.y + 2;
         double startZ = this.z + 10;
 
-        lasers.add(new Laser3D(leftWingX, startY, startZ, (this.x * 0.6 - leftWingX) * 0.05, (this.y * 0.6 - startY) * 0.05, shipType.getPrimaryColor()));
-        lasers.add(new Laser3D(rightWingX, startY, startZ, (this.x * 0.6 - rightWingX) * 0.05, (this.y * 0.6 - startY) * 0.05, shipType.getPrimaryColor()));
+        lasers.add(new Laser3D(leftWingX, startY, startZ, (this.x * 0.7 - leftWingX) * 0.05, (this.y * 0.7 - startY) * 0.05, shipType.getPrimaryColor()));
+        lasers.add(new Laser3D(rightWingX, startY, startZ, (this.x * 0.7 - rightWingX) * 0.05, (this.y * 0.7 - startY) * 0.05, shipType.getPrimaryColor()));
 
         if (droneType == DroneType.BLASTER_DRONE) {
             lasers.add(new Laser3D(this.x, startY - 18, startZ, 0, -0.2, droneType.getColor()));
@@ -242,11 +270,11 @@ public class PlayerShip3D extends Entity3D {
         this.moveRight = moveRight;
     }
 
-    public void setMoveUp(boolean moveUp) {
-        this.moveUp = moveUp;
+    public void setMoveForward(boolean moveForward) {
+        this.moveForward = moveForward;
     }
 
-    public void setMoveDown(boolean moveDown) {
-        this.moveDown = moveDown;
+    public void setMoveBackward(boolean moveBackward) {
+        this.moveBackward = moveBackward;
     }
 }

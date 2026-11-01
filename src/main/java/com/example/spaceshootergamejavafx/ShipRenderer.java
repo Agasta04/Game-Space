@@ -215,3 +215,4 @@ public class ShipRenderer {
         gc.fillOval(tx - tw / 2.0, ty, tw, th);
     }
 }
+

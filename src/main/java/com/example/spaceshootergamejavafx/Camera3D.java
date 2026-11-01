@@ -1,27 +1,27 @@
 package com.example.spaceshootergamejavafx;
 
 /**
- * Mengelola proyeksi perspektif 3D, orientasi kamera, dan titik hilang (Vanishing Point).
+ * Kamera 3D Chase Camera dinamis yang mengikuti pesawat pemain di sumbu X dan Z (Maju-Mundur).
  */
 public class Camera3D {
-    public static final double FOV = 460.0; // Jarak fokal proyeksi
+    public static final double FOV = 440.0;
     public static final double VANISH_X = SpaceShooter.WIDTH / 2.0;
-    public static final double VANISH_Y = SpaceShooter.HEIGHT / 2.0 + 30.0;
+    public static final double VANISH_Y = SpaceShooter.HEIGHT / 2.0 + 35.0;
 
     private double x = 0;
-    private double y = -50;
-    private double z = -90;
+    private double y = -40;
+    private double z = -140;
 
-    private double targetX = 0;
-    private double targetY = -50;
+    public void update(double shipX, double shipY, double shipZ) {
+        // Kamera berada di belakang dan sedikit di atas pesawat
+        double targetCamX = shipX * 0.35;
+        double targetCamY = shipY - 80.0;
+        double targetCamZ = shipZ - 150.0;
 
-    public void update(double targetShipX, double targetShipY) {
-        // Kamera mengikuti posisi pesawat pemain dengan lerp halus
-        this.targetX = targetShipX * 0.35;
-        this.targetY = -50 + (targetShipY + 120) * 0.25;
-
-        this.x += (this.targetX - this.x) * 0.12;
-        this.y += (this.targetY - this.y) * 0.12;
+        // Smooth camera lerp
+        this.x += (targetCamX - this.x) * 0.15;
+        this.y += (targetCamY - this.y) * 0.15;
+        this.z += (targetCamZ - this.z) * 0.20;
     }
 
     public double projectX(double worldX, double worldZ) {
@@ -56,4 +56,3 @@ public class Camera3D {
         return z;
     }
 }
-
