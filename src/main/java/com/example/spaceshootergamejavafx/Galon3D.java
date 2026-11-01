@@ -1,13 +1,30 @@
 package com.example.spaceshootergamejavafx;
 
 import javafx.scene.canvas.GraphicsContext;
+import javafx.scene.image.Image;
 import javafx.scene.paint.*;
-import javafx.scene.shape.ArcType;
+
+import java.io.InputStream;
 
 /**
  * Galon Air Mineral Kosmik 3D yang melayang dari horizon mendekati pemain di lintasan.
+ * Menggunakan tekstur 3D definisi tinggi dengan silinder berkilau, gelembung air, dan tutup merah.
  */
 public class Galon3D extends Entity3D {
+
+    private static Image galonImg;
+
+    static {
+        try {
+            InputStream is = Galon3D.class.getResourceAsStream("/galon_3d.png");
+            if (is != null) {
+                galonImg = new Image(is);
+            }
+        } catch (Exception e) {
+            System.err.println("Gagal memuat galon 3D: " + e.getMessage());
+        }
+    }
+
     private final boolean golden;
     private final double speedZ;
     private double rotAngle;
@@ -60,8 +77,8 @@ public class Galon3D extends Entity3D {
 
         if (sx < -80 || sx > SpaceShooter.WIDTH + 80 || sy < -80 || sy > SpaceShooter.HEIGHT + 80) return;
 
-        double gw = 54 * scale;
-        double gh = 72 * scale;
+        double gw = 64 * scale;
+        double gh = 86 * scale;
 
         gc.save();
 
@@ -69,98 +86,55 @@ public class Galon3D extends Entity3D {
         double floorY = 190.0;
         double shadowX = camera.projectX(this.x, this.z);
         double shadowY = camera.projectY(floorY, this.z);
-        double shadowW = gw * 0.85;
-        double shadowH = gh * 0.3;
+        double shadowW = gw * 0.9;
+        double shadowH = gh * 0.28;
 
         RadialGradient shadowGrad = new RadialGradient(
                 0, 0, shadowX, shadowY, shadowW / 2.0, false, CycleMethod.NO_CYCLE,
-                new Stop(0.0, Color.color(0, 0, 0, 0.45)),
+                new Stop(0.0, Color.color(0, 0, 0, 0.55)),
                 new Stop(1.0, Color.color(0, 0, 0, 0))
         );
         gc.setFill(shadowGrad);
         gc.fillOval(shadowX - shadowW / 2.0, shadowY - shadowH / 2.0, shadowW, shadowH);
 
         // 2. Aura Cahaya Neon 3D
-        Color auraCore = golden ? Color.color(1.0, 0.85, 0.1, 0.6) : Color.color(0.2, 0.7, 1.0, 0.45);
+        Color auraCore = golden ? Color.color(1.0, 0.85, 0.1, 0.65) : Color.color(0.0, 0.85, 1.0, 0.50);
         RadialGradient aura = new RadialGradient(
                 0, 0, sx, sy, gw * 1.1, false, CycleMethod.NO_CYCLE,
                 new Stop(0, auraCore),
+                new Stop(0.65, Color.color(auraCore.getRed(), auraCore.getGreen(), auraCore.getBlue(), 0.15)),
                 new Stop(1, Color.color(0, 0, 0, 0))
         );
         gc.setFill(aura);
         gc.fillOval(sx - gw * 1.1, sy - gh * 0.9, gw * 2.2, gh * 1.8);
 
-        // 3. Badan Galon 3D (Silinder Polycarbonate)
-        double drawX = sx - gw / 2.0;
-        double drawY = sy - gh / 2.0;
+        // 3. Tekstur Galon 3D HD
+        if (galonImg != null) {
+            double drawX = sx - gw / 2.0;
+            double drawY = sy - gh / 2.0;
 
-        LinearGradient bodyGrad;
-        if (golden) {
-            bodyGrad = new LinearGradient(
-                    drawX, 0, drawX + gw, 0, false, CycleMethod.NO_CYCLE,
-                    new Stop(0.0, Color.web("#e65100")),
-                    new Stop(0.25, Color.web("#ffb300")),
-                    new Stop(0.5, Color.web("#fff9c4")),
-                    new Stop(0.8, Color.web("#ffa000")),
-                    new Stop(1.0, Color.web("#ff6f00"))
-            );
+            gc.drawImage(galonImg, drawX, drawY, gw, gh);
+
+            if (golden) {
+                // Kilauan Emas Galon Emas
+                gc.save();
+                gc.setGlobalBlendMode(javafx.scene.effect.BlendMode.OVERLAY);
+                gc.setFill(Color.color(1.0, 0.85, 0.0, 0.65));
+                gc.fillRoundRect(drawX, drawY, gw, gh, 10 * scale, 10 * scale);
+                gc.restore();
+            }
         } else {
-            bodyGrad = new LinearGradient(
-                    drawX, 0, drawX + gw, 0, false, CycleMethod.NO_CYCLE,
-                    new Stop(0.0, Color.web("#0e5a8a")),
-                    new Stop(0.25, Color.web("#42b6f5")),
-                    new Stop(0.5, Color.web("#e1f5fe")),
-                    new Stop(0.8, Color.web("#299edb")),
-                    new Stop(1.0, Color.web("#0d4870"))
-            );
+            // Fallback render
+            renderFallbackGalon(gc, sx, sy, gw, gh, scale);
         }
-        gc.setFill(bodyGrad);
-        gc.fillRoundRect(drawX, drawY + 16 * scale, gw, gh - 18 * scale, 12 * scale, 12 * scale);
-
-        // Garis Lekukan Ring Galon
-        gc.setStroke(Color.color(1, 1, 1, 0.55));
-        gc.setLineWidth(1.8 * scale);
-        gc.strokeLine(drawX + 4 * scale, drawY + 28 * scale, drawX + gw - 4 * scale, drawY + 28 * scale);
-        gc.strokeLine(drawX + 4 * scale, drawY + 40 * scale, drawX + gw - 4 * scale, drawY + 40 * scale);
-        gc.strokeLine(drawX + 4 * scale, drawY + 52 * scale, drawX + gw - 4 * scale, drawY + 52 * scale);
-
-        // Cairan di Dalam Galon
-        LinearGradient fluidGrad;
-        if (golden) {
-            fluidGrad = new LinearGradient(
-                    0, drawY + 20 * scale, 0, drawY + gh - 4 * scale, false, CycleMethod.NO_CYCLE,
-                    new Stop(0.0, Color.color(1.0, 0.9, 0.2, 0.8)),
-                    new Stop(1.0, Color.color(0.9, 0.55, 0.0, 0.9))
-            );
-        } else {
-            fluidGrad = new LinearGradient(
-                    0, drawY + 20 * scale, 0, drawY + gh - 4 * scale, false, CycleMethod.NO_CYCLE,
-                    new Stop(0.0, Color.color(0.15, 0.75, 1.0, 0.8)),
-                    new Stop(1.0, Color.color(0.05, 0.4, 0.85, 0.9))
-            );
-        }
-        gc.setFill(fluidGrad);
-        gc.fillRoundRect(drawX + 4 * scale, drawY + 22 * scale, gw - 8 * scale, gh - 28 * scale, 8 * scale, 8 * scale);
-
-        // Leher Galon
-        LinearGradient neckGrad = new LinearGradient(
-                drawX + 14 * scale, 0, drawX + gw - 14 * scale, 0, false, CycleMethod.NO_CYCLE,
-                new Stop(0, golden ? Color.web("#ffb300") : Color.web("#299edb")),
-                new Stop(0.5, Color.WHITE),
-                new Stop(1, golden ? Color.web("#ff6f00") : Color.web("#0e5a8a"))
-        );
-        gc.setFill(neckGrad);
-        gc.fillRoundRect(drawX + 14 * scale, drawY + 6 * scale, gw - 28 * scale, 12 * scale, 5 * scale, 5 * scale);
-
-        // Tutup Segel Merah
-        gc.setFill(Color.web("#d32f2f"));
-        gc.fillRoundRect(drawX + 12 * scale, drawY, gw - 24 * scale, 9 * scale, 4 * scale, 4 * scale);
-
-        // Handle Samping
-        gc.setStroke(golden ? Color.web("#ff8f00") : Color.web("#1e88e5"));
-        gc.setLineWidth(3.0 * scale);
-        gc.strokeArc(drawX - 3 * scale, drawY + 26 * scale, 10 * scale, 20 * scale, 90, 180, ArcType.OPEN);
 
         gc.restore();
+    }
+
+    private void renderFallbackGalon(GraphicsContext gc, double sx, double sy, double gw, double gh, double scale) {
+        double drawX = sx - gw / 2.0;
+        double drawY = sy - gh / 2.0;
+        gc.setFill(golden ? Color.GOLD : Color.web("#00e5ff"));
+        gc.fillRoundRect(drawX, drawY, gw, gh, 8 * scale, 8 * scale);
     }
 }

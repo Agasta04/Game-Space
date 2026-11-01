@@ -11,6 +11,7 @@ import javafx.scene.control.*;
 import javafx.scene.effect.DropShadow;
 import javafx.scene.effect.Glow;
 import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
@@ -293,10 +294,30 @@ public class SpaceShooter extends Application {
     private void showHangarMenu() {
         gameRunning = false;
 
+        StackPane hangarRoot = new StackPane();
+
+        // 1. Background Planet Luar Angkasa Epik
+        try {
+            var bgStream = getClass().getResourceAsStream("/space_volcanic_planet.jpg");
+            if (bgStream != null) {
+                ImageView bgImgView = new ImageView(new Image(bgStream));
+                bgImgView.setFitWidth(WIDTH);
+                bgImgView.setFitHeight(HEIGHT);
+                bgImgView.setPreserveRatio(false);
+                hangarRoot.getChildren().add(bgImgView);
+            }
+        } catch (Exception ignored) {}
+
+        // 2. Lapisan Glassmorphism Gelap
+        Region darkTint = new Region();
+        darkTint.setStyle("-fx-background-color: rgba(4, 8, 22, 0.78);");
+        hangarRoot.getChildren().add(darkTint);
+
         VBox rootBox = new VBox(14);
         rootBox.setAlignment(Pos.CENTER);
-        rootBox.setStyle("-fx-background-color: linear-gradient(to bottom, #040814, #08142c, #110524);");
+        rootBox.setStyle("-fx-background-color: transparent;");
         rootBox.setPadding(new Insets(16));
+        hangarRoot.getChildren().add(rootBox);
 
         // Header Title
         Text titleText = new Text("SPACE INVADER 3D");
@@ -485,7 +506,7 @@ public class SpaceShooter extends Application {
 
         rootBox.getChildren().addAll(titleText, subText, mainHangarBox, buttonsBox);
 
-        Scene hangarScene = new Scene(rootBox, WIDTH, HEIGHT);
+        Scene hangarScene = new Scene(hangarRoot, WIDTH, HEIGHT);
         primaryStage.setScene(hangarScene);
     }
 

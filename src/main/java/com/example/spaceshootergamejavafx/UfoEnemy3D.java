@@ -1,22 +1,38 @@
 package com.example.spaceshootergamejavafx;
 
 import javafx.scene.canvas.GraphicsContext;
+import javafx.scene.image.Image;
 import javafx.scene.paint.*;
 
-import java.util.List;
+import java.io.InputStream;
 import java.util.Random;
 
 /**
  * Musuh UFO Alien Saucer 3D yang terbang dari horizon jauh mendekati kamera di lintasan arena.
+ * Menggunakan tekstur 3D definisi tinggi dengan kubah cockpit alien, lampu putar LED, dan tractor beam.
  */
 public class UfoEnemy3D extends Entity3D {
+
+    private static Image ufoImg;
+
+    static {
+        try {
+            InputStream is = UfoEnemy3D.class.getResourceAsStream("/ufo_3d.png");
+            if (is != null) {
+                ufoImg = new Image(is);
+            }
+        } catch (Exception e) {
+            System.err.println("Gagal memuat UFO 3D: " + e.getMessage());
+        }
+    }
+
     private final double speedZ;
     private double animAngle;
     private final double swayAmplitude;
     private final Random random = new Random();
 
     public UfoEnemy3D(double x, double y, double z, double speedZ) {
-        super(x, y, z, 34.0);
+        super(x, y, z, 36.0);
         this.speedZ = speedZ;
         this.animAngle = Math.random() * Math.PI * 2;
         this.swayAmplitude = 0.8 + Math.random() * 1.5;
@@ -36,6 +52,20 @@ public class UfoEnemy3D extends Entity3D {
         }
     }
 
+    public void spawnExplosion(java.util.List<Particle> particles, Camera3D camera) {
+        double sx = camera.projectX(this.x, this.z);
+        double sy = camera.projectY(this.y, this.z);
+        double scale = camera.getScale(this.z);
+        for (int i = 0; i < 24; i++) {
+            double angle = random.nextDouble() * Math.PI * 2;
+            double spd = (1.5 + random.nextDouble() * 5.5);
+            double vx = Math.cos(angle) * spd;
+            double vy = Math.sin(angle) * spd;
+            Color c = (random.nextDouble() < 0.5) ? Color.web("#d500f9") : (random.nextDouble() < 0.8 ? Color.web("#00e5ff") : Color.WHITE);
+            particles.add(new Particle(sx, sy, vx, vy, (4 + random.nextDouble() * 5) * scale, 0.45, c));
+        }
+    }
+
     @Override
     public void render(GraphicsContext gc, Camera3D camera) {
         if (z <= 25) return;
@@ -46,8 +76,8 @@ public class UfoEnemy3D extends Entity3D {
 
         if (sx < -100 || sx > SpaceShooter.WIDTH + 100 || sy < -100 || sy > SpaceShooter.HEIGHT + 100) return;
 
-        double ufoW = 72 * scale;
-        double ufoH = 40 * scale;
+        double ufoW = 88 * scale;
+        double ufoH = 52 * scale;
 
         gc.save();
 
@@ -55,95 +85,54 @@ public class UfoEnemy3D extends Entity3D {
         double floorY = 190.0;
         double shadowX = camera.projectX(this.x, this.z);
         double shadowY = camera.projectY(floorY, this.z);
-        double shadowW = ufoW * 0.9;
-        double shadowH = ufoH * 0.35;
+        double shadowW = ufoW * 0.95;
+        double shadowH = ufoH * 0.32;
 
         RadialGradient shadowGrad = new RadialGradient(
                 0, 0, shadowX, shadowY, shadowW / 2.0, false, CycleMethod.NO_CYCLE,
-                new Stop(0.0, Color.color(0, 0, 0, 0.45)),
+                new Stop(0.0, Color.color(0, 0, 0, 0.55)),
                 new Stop(1.0, Color.color(0, 0, 0, 0))
         );
         gc.setFill(shadowGrad);
         gc.fillOval(shadowX - shadowW / 2.0, shadowY - shadowH / 2.0, shadowW, shadowH);
 
-        // 2. Aura Traktor Beam Bawah Piring
+        // 2. Traktor Beam / Aura Energi Piring Bawah
         RadialGradient tractorGlow = new RadialGradient(
-                0, 0, sx, sy + (4 * scale), ufoW * 0.65, false, CycleMethod.NO_CYCLE,
-                new Stop(0, Color.color(0.2, 1.0, 0.4, 0.35)),
+                0, 0, sx, sy + (6 * scale), ufoW * 0.65, false, CycleMethod.NO_CYCLE,
+                new Stop(0, Color.color(0.6, 0.0, 1.0, 0.40)),
+                new Stop(0.7, Color.color(0.2, 0.9, 1.0, 0.15)),
                 new Stop(1, Color.color(0, 0, 0, 0))
         );
         gc.setFill(tractorGlow);
-        gc.fillOval(sx - ufoW * 0.65, sy, ufoW * 1.3, ufoH);
+        gc.fillOval(sx - ufoW * 0.65, sy, ufoW * 1.3, ufoH * 1.1);
 
-        // 3. Kubah Kaca Alien 3D (Cockpit Dome)
-        double domeW = ufoW * 0.48;
-        double domeH = ufoH * 0.65;
-        double domeX = sx - domeW / 2.0;
-        double domeY = sy - ufoH * 0.45;
+        // 3. Tekstur Piring Terbang UFO 3D HD
+        if (ufoImg != null) {
+            double drawX = sx - ufoW / 2.0;
+            double drawY = sy - ufoH / 2.0;
+            gc.drawImage(ufoImg, drawX, drawY, ufoW, ufoH);
 
-        LinearGradient domeGrad = new LinearGradient(
-                domeX, domeY, domeX + domeW, domeY + domeH, false, CycleMethod.NO_CYCLE,
-                new Stop(0.0, Color.web("#69f0ae")),
-                new Stop(0.5, Color.web("#00bfa5")),
-                new Stop(1.0, Color.web("#004d40"))
-        );
-        gc.setFill(domeGrad);
-        gc.fillOval(domeX, domeY, domeW, domeH);
+            // Lampu LED Berputar di Keliling Piring
+            int numLeds = 6;
+            for (int i = 0; i < numLeds; i++) {
+                double angle = animAngle * 2.0 + (i * Math.PI * 2 / numLeds);
+                double ledX = sx + Math.cos(angle) * (ufoW * 0.38);
+                double ledY = sy + (ufoH * 0.22) + Math.sin(angle) * (ufoH * 0.10);
 
-        // Alien Pilot di dalam kubah
-        if (scale > 0.35) {
-            gc.setFill(Color.web("#76ff03"));
-            gc.fillOval(sx - 4 * scale, domeY + 4 * scale, 8 * scale, 8 * scale);
-            gc.setFill(Color.BLACK);
-            gc.fillOval(sx - 3 * scale, domeY + 6 * scale, 2.5 * scale, 3 * scale);
-            gc.fillOval(sx + 0.5 * scale, domeY + 6 * scale, 2.5 * scale, 3 * scale);
-        }
-
-        // Pantulan Kaca Kubah
-        gc.setFill(Color.color(1, 1, 1, 0.7));
-        gc.fillOval(domeX + 3 * scale, domeY + 2 * scale, domeW * 0.35, 4 * scale);
-
-        // 4. Piring Logam Utama UFO 3D
-        LinearGradient saucerGrad = new LinearGradient(
-                sx - ufoW / 2.0, sy - ufoH / 2.0, sx + ufoW / 2.0, sy + ufoH / 2.0, false, CycleMethod.NO_CYCLE,
-                new Stop(0.0, Color.web("#cfd8dc")),
-                new Stop(0.3, Color.web("#90a4ae")),
-                new Stop(0.7, Color.web("#455a64")),
-                new Stop(1.0, Color.web("#212121"))
-        );
-        gc.setFill(saucerGrad);
-        gc.fillOval(sx - ufoW / 2.0, sy - ufoH * 0.2, ufoW, ufoH * 0.7);
-
-        gc.setStroke(Color.web("#eceff1"));
-        gc.setLineWidth(1.2 * scale);
-        gc.strokeOval(sx - ufoW / 2.0, sy - ufoH * 0.2, ufoW, ufoH * 0.7);
-
-        // 5. Lampu LED Berputar 3D di Tepian Piring
-        int numLights = 7;
-        for (int i = 0; i < numLights; i++) {
-            double angle = animAngle + (i * (2 * Math.PI / numLights));
-            double lx = sx + Math.cos(angle) * (ufoW * 0.44);
-            double ly = sy + 3 * scale + Math.sin(angle) * (ufoH * 0.18);
-
-            Color lightCol = (i % 2 == 0) ? Color.web("#ffea00") : Color.web("#ff3d00");
-            gc.setFill(lightCol);
-            double lSize = 4.5 * scale;
-            gc.fillOval(lx - lSize / 2.0, ly - lSize / 2.0, lSize, lSize);
+                Color ledColor = (i % 2 == 0) ? Color.web("#d500f9") : Color.web("#00e5ff");
+                gc.setFill(ledColor);
+                gc.fillOval(ledX - 2.5 * scale, ledY - 2.5 * scale, 5.0 * scale, 5.0 * scale);
+            }
+        } else {
+            // Fallback render
+            renderFallbackUfo(gc, sx, sy, ufoW, ufoH, scale);
         }
 
         gc.restore();
     }
 
-    public void spawnExplosion(List<Particle> particles, Camera3D camera) {
-        double sx = camera.projectX(this.x, this.z);
-        double sy = camera.projectY(this.y, this.z);
-        double scale = camera.getScale(this.z);
-
-        for (int i = 0; i < 20; i++) {
-            double angle = random.nextDouble() * Math.PI * 2;
-            double spd = 2.0 + random.nextDouble() * 5.0;
-            Color col = (random.nextDouble() < 0.4) ? Color.web("#ff3d00") : Color.web("#ffea00");
-            particles.add(new Particle(sx, sy, Math.cos(angle) * spd, Math.sin(angle) * spd, (4 + random.nextDouble() * 4) * scale, 0.45, col));
-        }
+    private void renderFallbackUfo(GraphicsContext gc, double sx, double sy, double ufoW, double ufoH, double scale) {
+        gc.setFill(Color.web("#9c27b0"));
+        gc.fillOval(sx - ufoW / 2.0, sy - ufoH / 2.0, ufoW, ufoH);
     }
 }

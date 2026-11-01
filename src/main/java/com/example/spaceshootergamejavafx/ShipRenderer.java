@@ -1,218 +1,200 @@
 package com.example.spaceshootergamejavafx;
 
 import javafx.scene.canvas.GraphicsContext;
+import javafx.scene.image.Image;
 import javafx.scene.paint.*;
-import javafx.scene.shape.ArcType;
+import javafx.scene.effect.DropShadow;
+
+import java.io.InputStream;
+import java.util.Random;
 
 /**
- * Merender model visual pesawat pemain dengan presisi tinggi, solid, dan tidak mengalami distorsi poligon.
- * Digunakan di Hangar Preview dan saat gameplay berlangsung.
+ * Merender model visual pesawat pemain dengan elemen 3D nyata,
+ * tekstur definisi tinggi (High-Definition 3D Model),
+ * triple engine thruster plasma, dan aura bercahaya persis sesuai referensi.
  */
 public class ShipRenderer {
 
+    private static Image shipUserExact;
+    private static Image ship3DHighRes;
+    private static final Random random = new Random();
+
+    static {
+        try {
+            InputStream isUser = ShipRenderer.class.getResourceAsStream("/player_ship_user_exact.png");
+            if (isUser != null) {
+                shipUserExact = new Image(isUser);
+            }
+            InputStream is3D = ShipRenderer.class.getResourceAsStream("/player_ship_3d.png");
+            if (is3D != null) {
+                ship3DHighRes = new Image(is3D);
+            }
+        } catch (Exception e) {
+            System.err.println("Gagal memuat tekstur 3D kapal: " + e.getMessage());
+        }
+    }
+
     /**
-     * Merender model pesawat secara solid dan presisi.
-     *
-     * @param gc GraphicsContext canvas
-     * @param ship Tipe pesawat yang dipilih
-     * @param cx Posisi X pusat
-     * @param cy Posisi Y pusat
-     * @param scale Skala ukuran
-     * @param roll Kemiringan roll (-1.0 kiri sampai +1.0 kanan)
-     * @param pitch Kemiringan pitch (-1.0 atas sampai +1.0 bawah)
-     * @param animTime Waktu animasi untuk pulse mesin & glow
+     * Merender model pesawat 3D dengan perspektif chase camera dari belakang.
      */
     public static void renderShip(GraphicsContext gc, ShipType ship, double cx, double cy,
                                   double scale, double roll, double pitch, double animTime) {
         gc.save();
         gc.translate(cx, cy);
 
-        // Efek banking roll horizontal compression yang terkontrol
-        double rollFactor = 1.0 - Math.abs(roll) * 0.22;
-        double rollLean = roll * 18.0 * scale;
-        double pitchLean = pitch * 10.0 * scale;
+        // Banking roll rotation
+        double rollAngle = roll * 24.0;
+        gc.rotate(rollAngle);
 
-        // Dimensi dasar pesawat
-        double bodyW = 28.0 * scale * rollFactor;
-        double bodyH = 68.0 * scale;
-        double wingSpan = 84.0 * scale;
+        // Pitch lean
+        double pitchLean = pitch * 12.0 * scale;
+        gc.translate(0, pitchLean);
 
-        // --- 1. TWIN ENGINE THRUSTER FLAME (Api Pendorong Plasma) ---
-        double flamePulse = Math.sin(animTime * 4.0) * (5.0 * scale);
-        double engineSpacing = 16.0 * scale * rollFactor;
-        double flameY = (bodyH * 0.35) + pitchLean;
+        // Pilih tekstur yang paling pas
+        Image shipImage = (ship == ShipType.TITAN_AEGIS && ship3DHighRes != null)
+                ? ship3DHighRes
+                : (shipUserExact != null ? shipUserExact : ship3DHighRes);
 
-        renderThrusterFlame(gc, -engineSpacing + rollLean * 0.4, flameY, 11.0 * scale, 22.0 * scale + flamePulse, ship.getPrimaryColor());
-        renderThrusterFlame(gc, engineSpacing + rollLean * 0.4, flameY, 11.0 * scale, 22.0 * scale + flamePulse, ship.getPrimaryColor());
-
-        // --- 2. SAYAP UTAMA SESUAI TIPE PESAWAT (SOLID WING GEOMETRY) ---
-        if (ship == ShipType.FALCON_X1) {
-            // Falcon: Sayap V-Wing Aerodinamis Cepat
-            renderFalconWings(gc, ship, wingSpan, bodyH, scale, roll, pitchLean);
-        } else if (ship == ShipType.TITAN_AEGIS) {
-            // Titan: Sayap Armor Baja Kekar Bersudut
-            renderTitanWings(gc, ship, wingSpan, bodyH, scale, roll, pitchLean);
-        } else {
-            // Phantom: Forward-Swept Wings Sci-Fi
-            renderPhantomWings(gc, ship, wingSpan, bodyH, scale, roll, pitchLean);
+        // Dimensi rendering pesawat di layar
+        double renderW = 120.0 * scale;
+        double renderH = 74.0 * scale;
+        if (shipImage == ship3DHighRes) {
+            renderW = 135.0 * scale;
+            renderH = 96.0 * scale;
         }
 
-        // --- 3. BADAN UTAMA PESAWAT (FUSELAGE MONOCOQUE HULL) ---
-        // Sasis Utama
-        double fLeft = -bodyW / 2.0 + rollLean * 0.3;
-        double fTop = -bodyH * 0.5 + pitchLean;
+        // --- 1. EFEK TRIPLE PLASMA ENGINE THRUSTERS (Persis Foto Referensi) ---
+        // Foto memiliki 3 mesin: 1 Mesin Pusat Besar + 2 Mesin Samping
+        double nozzleY = (renderH * 0.22);
+        double centerSpacing = renderW * 0.17;
 
-        // Moncong Depan Ramping Aerodinamis
-        double[] noseX = {rollLean * 0.5, fLeft, fLeft + bodyW};
-        double[] noseY = {fTop - 16.0 * scale, fTop + 24.0 * scale, fTop + 24.0 * scale};
+        double flamePulse = Math.sin(animTime * 6.0) * (4.0 * scale);
+        double boostFlame = Math.max(0, -pitch) * 16.0 * scale; // memanjang saat W (maju) ditekan
 
-        LinearGradient noseGrad = new LinearGradient(
-                fLeft, 0, fLeft + bodyW, 0, false, CycleMethod.NO_CYCLE,
-                new Stop(0.0, ship.getBodyColor().darker()),
-                new Stop(0.35, Color.WHITE),
-                new Stop(0.7, ship.getBodyColor()),
-                new Stop(1.0, ship.getBodyColor().darker())
+        // Mesin Kiri & Kanan (Turbo Nozzles)
+        renderSingleThrusterFlame(gc, -centerSpacing, nozzleY, 9.0 * scale, 22.0 * scale + flamePulse + boostFlame * 0.7, Color.web("#00e5ff"), Color.web("#80d8ff"));
+        renderSingleThrusterFlame(gc, centerSpacing, nozzleY, 9.0 * scale, 22.0 * scale + flamePulse + boostFlame * 0.7, Color.web("#00e5ff"), Color.web("#80d8ff"));
+
+        // Mesin Tengah Utama (Giant Center Plasma Arc)
+        renderMainCenterThruster(gc, 0, nozzleY + (2.0 * scale), 14.0 * scale, 34.0 * scale + flamePulse * 1.5 + boostFlame, animTime);
+
+        // --- 2. AURA / OUTER GLOW CAHAYA PESAWAT (PERSIS FOTO REFERENSI) ---
+        // Di foto terdapat halo putih/cyan terang yang membingkai siluet pesawat
+        RadialGradient auraGrad = new RadialGradient(
+                0, 0, 0, 0, renderW * 0.65, false, CycleMethod.NO_CYCLE,
+                new Stop(0.0, Color.color(0.0, 0.9, 1.0, 0.35)),
+                new Stop(0.7, Color.color(0.4, 0.95, 1.0, 0.15)),
+                new Stop(1.0, Color.color(0.0, 0.0, 0.0, 0))
         );
-        gc.setFill(noseGrad);
-        gc.fillPolygon(noseX, noseY, 3);
-        gc.setStroke(ship.getAccentColor());
-        gc.setLineWidth(1.5 * scale);
-        gc.strokePolygon(noseX, noseY, 3);
+        gc.setFill(auraGrad);
+        gc.fillOval(-renderW * 0.65, -renderH * 0.65, renderW * 1.3, renderH * 1.3);
 
-        // Bodi Silinder Utama
-        LinearGradient bodyGrad = new LinearGradient(
-                fLeft, 0, fLeft + bodyW, 0, false, CycleMethod.NO_CYCLE,
-                new Stop(0.0, ship.getBodyColor().darker()),
-                new Stop(0.3, Color.web("#f5f5f5")),
-                new Stop(0.65, ship.getBodyColor()),
-                new Stop(1.0, ship.getBodyColor().darker())
+        // --- 3. RENDER 3D MODEL TEXTURE HD ---
+        if (shipImage != null) {
+            double drawX = -renderW / 2.0;
+            double drawY = -renderH / 2.0;
+            gc.drawImage(shipImage, drawX, drawY, renderW, renderH);
+
+            // Lapisan Aksen Warna Pesawat (Falcon Cyan / Titan Merah / Phantom Ungu)
+            if (ship != ShipType.FALCON_X1) {
+                gc.save();
+                gc.setGlobalBlendMode(javafx.scene.effect.BlendMode.OVERLAY);
+                gc.setFill(Color.color(ship.getPrimaryColor().getRed(), ship.getPrimaryColor().getGreen(), ship.getPrimaryColor().getBlue(), 0.35));
+                gc.fillOval(drawX, drawY, renderW, renderH);
+                gc.restore();
+            }
+        } else {
+            // Fallback procedur jika gambar gagal termuat
+            renderFallbackProceduralShip(gc, ship, renderW, renderH, scale);
+        }
+
+        // --- 4. KOKPIT GLASS REFLECTION GLOW ---
+        gc.save();
+        double cockpitX = 0;
+        double cockpitY = -renderH * 0.15;
+        RadialGradient cockpitGlow = new RadialGradient(
+                -45, 0.3, cockpitX, cockpitY, 12 * scale, false, CycleMethod.NO_CYCLE,
+                new Stop(0.0, Color.WHITE),
+                new Stop(0.4, Color.web("#80d8ff")),
+                new Stop(0.8, Color.web("#0091ea")),
+                new Stop(1.0, Color.color(0, 0, 0, 0))
         );
-        gc.setFill(bodyGrad);
-        gc.fillRoundRect(fLeft, fTop + 20.0 * scale, bodyW, bodyH * 0.65, 8.0 * scale, 8.0 * scale);
-        gc.setStroke(ship.getAccentColor());
-        gc.setLineWidth(1.5 * scale);
-        gc.strokeRoundRect(fLeft, fTop + 20.0 * scale, bodyW, bodyH * 0.65, 8.0 * scale, 8.0 * scale);
-
-        // Panel Garis Sci-Fi
-        gc.setStroke(ship.getPrimaryColor());
-        gc.setLineWidth(1.8 * scale);
-        gc.strokeLine(fLeft + 3 * scale, fTop + 38 * scale, fLeft + bodyW - 3 * scale, fTop + 38 * scale);
-
-        // --- 4. KOKPIT KACA KRISTAL 3D (CANOPY) ---
-        double cpW = bodyW * 0.62;
-        double cpH = 22.0 * scale;
-        double cpX = -cpW / 2.0 + rollLean * 0.45;
-        double cpY = fTop + 4.0 * scale;
-
-        LinearGradient canopyGrad = new LinearGradient(
-                cpX, cpY, cpX + cpW, cpY + cpH, false, CycleMethod.NO_CYCLE,
-                new Stop(0.0, ship.getPrimaryColor()),
-                new Stop(0.4, Color.WHITE),
-                new Stop(1.0, ship.getAccentColor())
-        );
-        gc.setFill(canopyGrad);
-        gc.fillOval(cpX, cpY, cpW, cpH);
-
-        // Kilau pantulan cahaya kaca
-        gc.setFill(Color.color(1, 1, 1, 0.75));
-        gc.fillOval(cpX + 2 * scale, cpY + 2 * scale, cpW * 0.45, 6 * scale);
-
-        // --- 5. MERIAM LASER PODS PADA UJUNG SAYAP ---
-        double cannonOffset = (wingSpan * 0.5) * (1.0 - Math.abs(roll) * 0.2);
-        renderCannonPod(gc, -cannonOffset, fTop + 35 * scale, scale, ship.getPrimaryColor());
-        renderCannonPod(gc, cannonOffset, fTop + 35 * scale, scale, ship.getPrimaryColor());
+        gc.setFill(cockpitGlow);
+        gc.fillOval(cockpitX - 6 * scale, cockpitY - 10 * scale, 12 * scale, 20 * scale);
+        gc.restore();
 
         gc.restore();
     }
 
-    private static void renderFalconWings(GraphicsContext gc, ShipType ship, double wingSpan, double bodyH, double scale, double roll, double pitchLean) {
-        double leftSpan = (wingSpan * 0.5) * (1.0 - roll * 0.35);
-        double rightSpan = (wingSpan * 0.5) * (1.0 + roll * 0.35);
-        double wingY = 4.0 * scale + pitchLean;
+    /**
+     * Merender semburan api plasma mesin samping.
+     */
+    private static void renderSingleThrusterFlame(GraphicsContext gc, double x, double y, double width, double height, Color outerCol, Color innerCol) {
+        gc.save();
+        // Cincin Nozzle
+        gc.setFill(Color.web("#e0f7fa"));
+        gc.fillOval(x - width / 2.0, y - width * 0.35, width, width * 0.7);
 
-        // Sayap Kiri
-        double[] lx = {-8 * scale, -leftSpan, -14 * scale};
-        double[] ly = {wingY, wingY + 24 * scale, wingY + 16 * scale};
-        gc.setFill(ship.getAccentColor());
-        gc.fillPolygon(lx, ly, 3);
-        gc.setStroke(ship.getPrimaryColor());
-        gc.setLineWidth(1.8 * scale);
-        gc.strokePolygon(lx, ly, 3);
-
-        // Sayap Kanan
-        double[] rx = {8 * scale, rightSpan, 14 * scale};
-        double[] ry = {wingY, wingY + 24 * scale, wingY + 16 * scale};
-        gc.setFill(ship.getAccentColor());
-        gc.fillPolygon(rx, ry, 3);
-        gc.setStroke(ship.getPrimaryColor());
-        gc.setLineWidth(1.8 * scale);
-        gc.strokePolygon(rx, ry, 3);
-    }
-
-    private static void renderTitanWings(GraphicsContext gc, ShipType ship, double wingSpan, double bodyH, double scale, double roll, double pitchLean) {
-        double leftSpan = (wingSpan * 0.55) * (1.0 - roll * 0.3);
-        double rightSpan = (wingSpan * 0.55) * (1.0 + roll * 0.3);
-        double wingY = -2.0 * scale + pitchLean;
-
-        // Armor sayap bersudut tebal
-        double[] lx = {-10 * scale, -leftSpan, -leftSpan + 10 * scale, -12 * scale};
-        double[] ly = {wingY, wingY + 14 * scale, wingY + 34 * scale, wingY + 26 * scale};
-        gc.setFill(ship.getBodyColor());
-        gc.fillPolygon(lx, ly, 4);
-        gc.setStroke(ship.getPrimaryColor());
-        gc.setLineWidth(2.2 * scale);
-        gc.strokePolygon(lx, ly, 4);
-
-        double[] rx = {10 * scale, rightSpan, rightSpan - 10 * scale, 12 * scale};
-        double[] ry = {wingY, wingY + 14 * scale, wingY + 34 * scale, wingY + 26 * scale};
-        gc.setFill(ship.getBodyColor());
-        gc.fillPolygon(rx, ry, 4);
-        gc.setStroke(ship.getPrimaryColor());
-        gc.setLineWidth(2.2 * scale);
-        gc.strokePolygon(rx, ry, 4);
-    }
-
-    private static void renderPhantomWings(GraphicsContext gc, ShipType ship, double wingSpan, double bodyH, double scale, double roll, double pitchLean) {
-        double leftSpan = (wingSpan * 0.52) * (1.0 - roll * 0.35);
-        double rightSpan = (wingSpan * 0.52) * (1.0 + roll * 0.35);
-        double wingY = 10.0 * scale + pitchLean;
-
-        // Forward-swept wing (sayap maju ke depan)
-        double[] lx = {-8 * scale, -leftSpan, -leftSpan + 8 * scale, -10 * scale};
-        double[] ly = {wingY, wingY - 14 * scale, wingY + 16 * scale, wingY + 14 * scale};
-        gc.setFill(ship.getAccentColor());
-        gc.fillPolygon(lx, ly, 4);
-        gc.setStroke(ship.getPrimaryColor());
-        gc.setLineWidth(1.8 * scale);
-        gc.strokePolygon(lx, ly, 4);
-
-        double[] rx = {8 * scale, rightSpan, rightSpan - 8 * scale, 10 * scale};
-        double[] ry = {wingY, wingY - 14 * scale, wingY + 16 * scale, wingY + 14 * scale};
-        gc.setFill(ship.getAccentColor());
-        gc.fillPolygon(rx, ry, 4);
-        gc.setStroke(ship.getPrimaryColor());
-        gc.setLineWidth(1.8 * scale);
-        gc.strokePolygon(rx, ry, 4);
-    }
-
-    private static void renderCannonPod(GraphicsContext gc, double cx, double cy, double scale, Color laserColor) {
-        gc.setFill(Color.web("#212121"));
-        gc.fillRoundRect(cx - 3 * scale, cy - 8 * scale, 6 * scale, 16 * scale, 2 * scale, 2 * scale);
-        // Ujung laras bercahaya
-        gc.setFill(laserColor);
-        gc.fillOval(cx - 2.5 * scale, cy - 10 * scale, 5 * scale, 4 * scale);
-    }
-
-    private static void renderThrusterFlame(GraphicsContext gc, double tx, double ty, double tw, double th, Color flameColor) {
-        RadialGradient flameGrad = new RadialGradient(
-                0, 0, tx, ty + th * 0.3, th * 0.7, false, CycleMethod.NO_CYCLE,
+        // Api Plasma Lonjong
+        LinearGradient flameGrad = new LinearGradient(
+                x, y, x, y + height, false, CycleMethod.NO_CYCLE,
                 new Stop(0.0, Color.WHITE),
-                new Stop(0.3, flameColor),
-                new Stop(0.7, Color.color(flameColor.getRed(), flameColor.getGreen(), flameColor.getBlue(), 0.35)),
-                new Stop(1.0, Color.color(0, 0, 0, 0))
+                new Stop(0.25, innerCol),
+                new Stop(0.7, outerCol),
+                new Stop(1.0, Color.color(outerCol.getRed(), outerCol.getGreen(), outerCol.getBlue(), 0.0))
         );
         gc.setFill(flameGrad);
-        gc.fillOval(tx - tw / 2.0, ty, tw, th);
+        gc.fillOval(x - width / 2.0, y, width, height);
+        gc.restore();
+    }
+
+    /**
+     * Merender mesin pusat utama yang sangat bertenaga dengan lidah petir plasma biru-putih ke bawah.
+     */
+    private static void renderMainCenterThruster(GraphicsContext gc, double x, double y, double width, double height, double animTime) {
+        gc.save();
+        // Cincin Nozzle Inti Putih Terang
+        gc.setFill(Color.WHITE);
+        gc.fillOval(x - width / 2.0, y - width * 0.35, width, width * 0.7);
+
+        // Semburan Berkas Plasma Utama
+        LinearGradient mainGrad = new LinearGradient(
+                x, y, x, y + height, false, CycleMethod.NO_CYCLE,
+                new Stop(0.0, Color.WHITE),
+                new Stop(0.2, Color.web("#e0f7fa")),
+                new Stop(0.5, Color.web("#00e5ff")),
+                new Stop(0.85, Color.web("#0091ea")),
+                new Stop(1.0, Color.color(0, 0.4, 1.0, 0))
+        );
+        gc.setFill(mainGrad);
+        gc.fillOval(x - width / 2.0, y, width, height);
+
+        // Lidah Petir Listrik Plasma Biru ke Bawah (persis foto referensi!)
+        gc.setStroke(Color.web("#80d8ff"));
+        gc.setLineWidth(2.0);
+        double prevX = x;
+        double prevY = y + width * 0.5;
+        int segments = 6;
+        double segH = height / segments;
+
+        for (int i = 1; i <= segments; i++) {
+            double nextX = x + Math.sin(animTime * 12.0 + i) * (width * 0.35);
+            double nextY = y + i * segH;
+            gc.strokeLine(prevX, prevY, nextX, nextY);
+            prevX = nextX;
+            prevY = nextY;
+        }
+
+        gc.restore();
+    }
+
+    private static void renderFallbackProceduralShip(GraphicsContext gc, ShipType ship, double w, double h, double scale) {
+        gc.setFill(Color.web("#263238"));
+        double[] px = {-w / 2.0, 0, w / 2.0};
+        double[] py = {h / 2.0, -h / 2.0, h / 2.0};
+        gc.fillPolygon(px, py, 3);
+        gc.setStroke(ship.getPrimaryColor());
+        gc.setLineWidth(2.0 * scale);
+        gc.strokePolygon(px, py, 3);
     }
 }
-

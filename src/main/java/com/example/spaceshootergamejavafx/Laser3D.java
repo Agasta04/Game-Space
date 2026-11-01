@@ -4,17 +4,18 @@ import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.paint.*;
 
 /**
- * Berkas Laser 3D yang melesat dari moncong pesawat ke horizon kedalaman.
+ * Berkas Laser 3D Berenergi Tinggi yang melesat dari rel sayap pesawat ke kedalaman horizon.
+ * Sesuai visual referensi: Berkas sinar lonjong tebal dengan inti putih terang dan aura cyan menyilaukan.
  */
 public class Laser3D extends Entity3D {
     private final double vx;
     private final double vy;
-    private static final double SPEED_Z = 58.0;
-    private static final double LASER_LENGTH_Z = 45.0;
+    private static final double SPEED_Z = 64.0;
+    private static final double LASER_LENGTH_Z = 65.0;
     private final Color color;
 
     public Laser3D(double x, double y, double z, double vx, double vy, Color color) {
-        super(x, y, z, 14.0);
+        super(x, y, z, 16.0);
         this.vx = vx;
         this.vy = vy;
         this.color = color;
@@ -40,19 +41,27 @@ public class Laser3D extends Entity3D {
         double sy2 = camera.projectY(this.y, this.z + LASER_LENGTH_Z);
 
         double scale = camera.getScale(this.z);
-        double width = Math.max(1.8, 6.0 * scale);
+        double coreWidth = Math.max(2.2, 7.0 * scale);
+        double auraWidth = coreWidth * 2.6;
 
         gc.save();
-        // Berkas sinar luar neon
-        gc.setStroke(Color.color(color.getRed(), color.getGreen(), color.getBlue(), 0.5));
-        gc.setLineWidth(width * 2.2);
+
+        // 1. Aura Cahaya Luar Neon Cyan/Biru
+        gc.setStroke(Color.color(color.getRed(), color.getGreen(), color.getBlue(), 0.55));
+        gc.setLineWidth(auraWidth);
+        gc.setLineCap(javafx.scene.shape.StrokeLineCap.ROUND);
         gc.strokeLine(sx1, sy1, sx2, sy2);
 
-        // Inti putih terang
-        gc.setStroke(Color.WHITE);
-        gc.setLineWidth(width);
+        // 2. Berkas Menengah Terang
+        gc.setStroke(Color.web("#e0f7fa"));
+        gc.setLineWidth(coreWidth * 1.5);
         gc.strokeLine(sx1, sy1, sx2, sy2);
+
+        // 3. Inti Putih Murni Bersinar
+        gc.setStroke(Color.WHITE);
+        gc.setLineWidth(coreWidth);
+        gc.strokeLine(sx1, sy1, sx2, sy2);
+
         gc.restore();
     }
 }
-
