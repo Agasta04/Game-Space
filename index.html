@@ -1,0 +1,1978 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>★ STAR INVADER 3D - Misi Pemburu Galon Kosmik ★</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        body {
+            background-color: #02050e;
+            color: #ffffff;
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        #game-container {
+            position: relative;
+            width: 1050px;
+            height: 700px;
+            max-width: 100vw;
+            max-height: 100vh;
+            background: #030713;
+            box-shadow: 0 0 50px rgba(0, 229, 255, 0.25), 0 0 100px rgba(0, 10, 30, 0.9);
+            border: 2px solid #00e5ff;
+            border-radius: 12px;
+            overflow: hidden;
+            aspect-ratio: 1050 / 700;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* UI Overlays */
+        .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: linear-gradient(to bottom, rgba(3, 7, 19, 0.92), rgba(9, 26, 54, 0.95), rgba(20, 8, 38, 0.92));
+            z-index: 10;
+            padding: 20px;
+            transition: opacity 0.3s ease;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        /* Hangar Title */
+        .title-banner {
+            text-align: center;
+            margin-bottom: 12px;
+        }
+
+        .title-banner h1 {
+            font-size: 42px;
+            font-weight: 900;
+            color: #00e5ff;
+            text-shadow: 0 0 20px #00b0ff, 0 0 40px #00e5ff;
+            letter-spacing: 2px;
+        }
+
+        .title-banner p {
+            font-size: 13px;
+            font-weight: bold;
+            color: #ffd600;
+            letter-spacing: 3px;
+            margin-top: 4px;
+        }
+
+        /* Main Hangar Layout */
+        .hangar-box {
+            display: flex;
+            gap: 20px;
+            max-width: 920px;
+            width: 100%;
+            margin-bottom: 14px;
+        }
+
+        .hangar-card {
+            background: rgba(8, 20, 48, 0.88);
+            border: 1.6px solid #00e5ff;
+            border-radius: 16px;
+            padding: 16px;
+            box-shadow: 0 0 16px rgba(0, 229, 255, 0.3);
+        }
+
+        .left-dock {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .left-dock h3 {
+            font-size: 13px;
+            color: #80d8ff;
+            margin-bottom: 8px;
+            letter-spacing: 1px;
+        }
+
+        #preview-canvas {
+            width: 320px;
+            height: 220px;
+            background: transparent;
+            border-radius: 8px;
+        }
+
+        .ship-switcher {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin-top: 10px;
+        }
+
+        .nav-btn {
+            background: #06152d;
+            color: #00e5ff;
+            border: 1.5px solid #00e5ff;
+            border-radius: 8px;
+            width: 44px;
+            height: 36px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 0 8px rgba(0, 229, 255, 0.3);
+            transition: all 0.2s;
+        }
+
+        .nav-btn:hover {
+            background: #00e5ff;
+            color: #000;
+            transform: scale(1.08);
+        }
+
+        #ship-name {
+            font-size: 18px;
+            font-weight: 800;
+            min-width: 170px;
+            text-align: center;
+            color: #00e5ff;
+            letter-spacing: 1px;
+        }
+
+        /* Right Specs */
+        .right-specs {
+            flex: 1.25;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .callsign-box {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .callsign-box label {
+            font-size: 13px;
+            font-weight: bold;
+            color: #80d8ff;
+        }
+
+        .callsign-box input {
+            flex: 1;
+            background: #06152d;
+            border: 1.5px solid #00e5ff;
+            border-radius: 8px;
+            padding: 7px 12px;
+            color: #fff;
+            font-size: 14px;
+            font-weight: bold;
+            outline: none;
+        }
+
+        .callsign-box input:focus {
+            box-shadow: 0 0 10px #00e5ff;
+        }
+
+        #ship-desc {
+            font-size: 12px;
+            color: #cfd8dc;
+            line-height: 1.4;
+            min-height: 34px;
+        }
+
+        .stat-row {
+            display: flex;
+            align-items: center;
+            font-size: 11px;
+            font-weight: bold;
+            color: #90caf9;
+            margin-bottom: 5px;
+        }
+
+        .stat-row span:first-child {
+            width: 130px;
+        }
+
+        .stat-bar-outer {
+            flex: 1;
+            height: 10px;
+            background: rgba(0, 0, 0, 0.65);
+            border: 1px solid rgba(0, 229, 255, 0.5);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-right: 10px;
+        }
+
+        .stat-bar-fill {
+            height: 100%;
+            transition: width 0.3s ease;
+        }
+
+        /* Companion Drone Cards */
+        .drone-cards-container {
+            display: flex;
+            gap: 8px;
+            margin-top: 4px;
+        }
+
+        .drone-card {
+            flex: 1;
+            background: rgba(10, 20, 45, 0.65);
+            border: 1px solid rgba(0, 229, 255, 0.25);
+            border-radius: 8px;
+            padding: 8px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.25s;
+        }
+
+        .drone-card.selected {
+            background: linear-gradient(to bottom, rgba(0, 229, 255, 0.35), rgba(10, 30, 70, 0.85));
+            border: 1.8px solid #00e5ff;
+            box-shadow: 0 0 12px #00e5ff;
+            transform: translateY(-2px);
+        }
+
+        .drone-card .icon {
+            font-size: 20px;
+        }
+
+        .drone-card .title {
+            font-size: 11px;
+            font-weight: bold;
+            color: #fff;
+            margin-top: 2px;
+        }
+
+        .drone-card .perk {
+            font-size: 9px;
+            color: #80d8ff;
+            margin-top: 1px;
+        }
+
+        /* Action Buttons */
+        .button-bar {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+        }
+
+        .cyber-btn {
+            padding: 10px 22px;
+            border-radius: 22px;
+            font-size: 13px;
+            font-weight: 800;
+            color: white;
+            cursor: pointer;
+            border: 1.5px solid rgba(255, 255, 255, 0.45);
+            transition: all 0.2s;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+        }
+
+        .cyber-btn:hover {
+            transform: scale(1.05);
+            filter: brightness(1.2);
+            border-color: #ffffff;
+        }
+
+        .btn-launch {
+            background: linear-gradient(to right, #00c853, #00e676);
+            box-shadow: 0 0 14px rgba(0, 230, 118, 0.6);
+            padding: 10px 32px;
+            font-size: 14px;
+        }
+
+        .btn-leader {
+            background: linear-gradient(to right, #1565c0, #2979ff);
+            box-shadow: 0 0 12px rgba(41, 121, 255, 0.5);
+        }
+
+        .btn-guide {
+            background: linear-gradient(to right, #7b1fa2, #ab47bc);
+            box-shadow: 0 0 12px rgba(171, 71, 188, 0.5);
+        }
+
+        .btn-audio {
+            background: linear-gradient(to right, #e65100, #ff9100);
+            box-shadow: 0 0 12px rgba(255, 145, 0, 0.5);
+        }
+
+        /* Leaderboard Modal */
+        .modal {
+            max-width: 680px;
+            width: 100%;
+            background: rgba(8, 20, 48, 0.95);
+            border: 2px solid #00e5ff;
+            border-radius: 14px;
+            padding: 20px;
+            box-shadow: 0 0 25px rgba(0, 229, 255, 0.4);
+            text-align: center;
+        }
+
+        .modal h2 {
+            font-size: 26px;
+            color: #ffd600;
+            margin-bottom: 14px;
+            text-shadow: 0 0 10px #ffb300;
+        }
+
+        .leader-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+            margin-bottom: 16px;
+        }
+
+        .leader-table th {
+            background: rgba(0, 229, 255, 0.2);
+            color: #00e5ff;
+            padding: 8px;
+            font-weight: bold;
+        }
+
+        .leader-table td {
+            padding: 8px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        /* Touch Controls for Mobile/Tablet */
+        #touch-controls {
+            position: absolute;
+            bottom: 14px;
+            left: 0;
+            width: 100%;
+            padding: 0 20px;
+            display: flex;
+            justify-content: space-between;
+            pointer-events: none;
+            z-index: 5;
+        }
+
+        .touch-group {
+            display: flex;
+            gap: 12px;
+            pointer-events: auto;
+        }
+
+        .t-btn {
+            width: 58px;
+            height: 58px;
+            border-radius: 50%;
+            background: rgba(0, 229, 255, 0.25);
+            border: 2px solid #00e5ff;
+            color: #fff;
+            font-size: 20px;
+            font-weight: bold;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 0 10px rgba(0, 229, 255, 0.4);
+            user-select: none;
+            touch-action: manipulation;
+        }
+
+        .t-btn:active {
+            background: #00e5ff;
+            color: #000;
+        }
+
+        .t-btn-fire {
+            width: 72px;
+            height: 72px;
+            background: rgba(255, 23, 68, 0.35);
+            border-color: #ff1744;
+            box-shadow: 0 0 14px rgba(255, 23, 68, 0.6);
+        }
+
+        .t-btn-fire:active {
+            background: #ff1744;
+            color: #fff;
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <canvas id="gameCanvas" width="1050" height="700"></canvas>
+
+    <!-- TOUCH CONTROLS (Only visible on touch devices) -->
+    <div id="touch-controls" class="hidden">
+        <div class="touch-group">
+            <div class="t-btn" id="btn-left">◀</div>
+            <div class="t-btn" id="btn-fwd">▲</div>
+            <div class="t-btn" id="btn-bwd">▼</div>
+            <div class="t-btn" id="btn-right">▶</div>
+        </div>
+        <div class="touch-group">
+            <div class="t-btn t-btn-fire" id="btn-fire">🔥</div>
+        </div>
+    </div>
+
+    <!-- HANGAR MENU OVERLAY -->
+    <div id="hangar-overlay" class="overlay">
+        <div class="title-banner">
+            <h1>★ STAR INVADER 3D ★</h1>
+            <p>[ // TACTICAL AEROSPACE DOCK // SECTOR 01-05 READY // ]</p>
+        </div>
+
+        <div class="hangar-box">
+            <!-- Left 3D Holographic Turntable -->
+            <div class="hangar-card left-dock">
+                <h3>// 3D HOLOGRAPHIC DOCK //</h3>
+                <canvas id="preview-canvas" width="340" height="240"></canvas>
+                <div class="ship-switcher">
+                    <button class="nav-btn" id="prev-ship-btn">◀</button>
+                    <div id="ship-name">FALCON X-1</div>
+                    <button class="nav-btn" id="next-ship-btn">▶</button>
+                </div>
+            </div>
+
+            <!-- Right Pilot Specs & Drones -->
+            <div class="hangar-card right-specs">
+                <div class="callsign-box">
+                    <label>👨‍🚀 CALLSIGN:</label>
+                    <input type="text" id="pilot-name" value="COMMANDER" maxlength="14" spellcheck="false">
+                </div>
+
+                <div id="ship-desc">
+                    Tipe: Interceptor Lincah. Dirancang untuk akselerasi instan dan manuver tajam.
+                </div>
+
+                <div class="stats-container">
+                    <div class="stat-row">
+                        <span>WARP SPEED</span>
+                        <div class="stat-bar-outer"><div class="stat-bar-fill" id="speed-bar" style="width: 85%; background: #00e5ff;"></div></div>
+                        <span id="speed-val">85%</span>
+                    </div>
+                    <div class="stat-row">
+                        <span>3D MANEUVER</span>
+                        <div class="stat-bar-outer"><div class="stat-bar-fill" id="handle-bar" style="width: 82%; background: #ffea00;"></div></div>
+                        <span id="handle-val">82%</span>
+                    </div>
+                    <div class="stat-row">
+                        <span>MAGNET GRAVITY</span>
+                        <div class="stat-bar-outer"><div class="stat-bar-fill" id="magnet-bar" style="width: 36%; background: #d500f9;"></div></div>
+                        <span id="magnet-val">36%</span>
+                    </div>
+                </div>
+
+                <div style="font-size: 13px; font-weight: bold; color: #80d8ff; margin-top: 2px;">
+                    PILIH COMPANION DRONE:
+                </div>
+
+                <div class="drone-cards-container">
+                    <div class="drone-card selected" data-drone="MAGNET">
+                        <div class="icon">🧲</div>
+                        <div class="title">MAGNET</div>
+                        <div class="perk">+35% Tarik Galon</div>
+                    </div>
+                    <div class="drone-card" data-drone="SHIELD">
+                        <div class="icon">🛡️</div>
+                        <div class="title">SHIELD</div>
+                        <div class="perk">Perisai Kinetik</div>
+                    </div>
+                    <div class="drone-card" data-drone="BLASTER">
+                        <div class="icon">⚡</div>
+                        <div class="title">BLASTER</div>
+                        <div class="perk">Meriam Laser 3D</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="button-bar">
+            <button class="cyber-btn btn-launch" id="btn-launch-game">🚀 LUNCURKAN MISI</button>
+            <button class="cyber-btn btn-leader" id="btn-open-leaderboard">🏆 LEADERBOARD</button>
+            <button class="cyber-btn btn-guide" id="btn-open-guide">📜 PANDUAN</button>
+            <button class="cyber-btn btn-audio" id="btn-toggle-audio">🎵 AUDIO: ON</button>
+        </div>
+    </div>
+
+    <!-- LEADERBOARD OVERLAY -->
+    <div id="leaderboard-overlay" class="overlay hidden">
+        <div class="modal">
+            <h2>🏆 PAPAN SKOR TERTINGGI (TOP PILOTS)</h2>
+            <table class="leader-table">
+                <thead>
+                    <tr>
+                        <th>NO</th>
+                        <th>CALLSIGN</th>
+                        <th>💧 GALON</th>
+                        <th>SKOR</th>
+                        <th>WAKTU</th>
+                    </tr>
+                </thead>
+                <tbody id="leaderboard-body">
+                    <!-- Populated dynamically -->
+                </tbody>
+            </table>
+            <button class="cyber-btn btn-leader" id="btn-close-leaderboard">⬅️ KEMBALI KE HANGAR</button>
+        </div>
+    </div>
+
+    <!-- MISSION DEBRIEFING / GAME OVER OVERLAY -->
+    <div id="gameover-overlay" class="overlay hidden">
+        <div class="modal">
+            <h1 id="debrief-title" style="color: #00e5ff; font-size: 40px; margin-bottom: 10px;">MISI SELESAI</h1>
+            <div style="background: rgba(10, 25, 55, 0.7); border: 1.5px solid #00e5ff; border-radius: 12px; padding: 18px; margin-bottom: 16px;">
+                <p id="debrief-pilot" style="font-size: 16px; font-weight: bold; margin-bottom: 6px;">PILOT: COMMANDER</p>
+                <p id="debrief-sector" style="font-size: 15px; color: #ffd600; margin-bottom: 8px;">SEKTOR TERTINGGI: ORBIT BUMI</p>
+                <p id="debrief-galon" style="font-size: 26px; font-weight: 900; color: #00e5ff; margin-bottom: 6px;">💧 TOTAL GALON: 0</p>
+                <p id="debrief-score" style="font-size: 18px; font-weight: bold; color: #ffea00;">SKOR MISI: 0</p>
+            </div>
+            <div class="button-bar">
+                <button class="cyber-btn btn-launch" id="btn-restart">🔄 MAIN LAGI</button>
+                <button class="cyber-btn btn-guide" id="btn-to-hangar">🚀 HANGAR</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+/**
+ * ★ STAR INVADER 3D - HTML5 WEB / GITHUB PAGES ENGINE ★
+ * Authentic True 3D Polyhedral Fighter Jet, Perspective Camera, Cyber Grid,
+ * Cosmic Gallons, UFO Saucers, procedural Web Audio synthesizer, and Cockpit HUD.
+ */
+
+// --- 1. AUDIO SYNTHESIZER (WEB AUDIO API) ---
+let audioCtx = null;
+let musicEnabled = true;
+let bgmOsc = null;
+
+function initAudio() {
+    if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        startBGM();
+    }
+    if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+    }
+}
+
+function playLaserSound() {
+    if (!audioCtx || !musicEnabled) return;
+    try {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(110, audioCtx.currentTime + 0.14);
+        gain.gain.setValueAtTime(0.22, audioCtx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.14);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.15);
+    } catch(e) {}
+}
+
+function playGalonSound() {
+    if (!audioCtx || !musicEnabled) return;
+    try {
+        const notes = [523.25, 659.25, 783.99, 1046.5]; // C5, E5, G5, C6
+        notes.forEach((freq, idx) => {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime + idx * 0.04);
+            gain.gain.setValueAtTime(0.25, audioCtx.currentTime + idx * 0.04);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + idx * 0.04 + 0.18);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start(audioCtx.currentTime + idx * 0.04);
+            osc.stop(audioCtx.currentTime + idx * 0.04 + 0.2);
+        });
+    } catch(e) {}
+}
+
+function playHitSound() {
+    if (!audioCtx || !musicEnabled) return;
+    try {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(140, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(40, audioCtx.currentTime + 0.25);
+        gain.gain.setValueAtTime(0.4, audioCtx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.25);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.26);
+    } catch(e) {}
+}
+
+function playWarpSound() {
+    if (!audioCtx || !musicEnabled) return;
+    try {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.8);
+        gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.8);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.82);
+    } catch(e) {}
+}
+
+function playClickSound() {
+    if (!audioCtx || !musicEnabled) return;
+    try {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(1200, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.04);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.05);
+    } catch(e) {}
+}
+
+function startBGM() {
+    if (!audioCtx || !musicEnabled) return;
+    // Procedural Synthwave Bassline Arpeggio
+    const bassline = [65.41, 65.41, 77.78, 87.31, 98.00, 87.31, 77.78, 65.41]; // C2, Eb2, F2, G2
+    let step = 0;
+    setInterval(() => {
+        if (!musicEnabled || !audioCtx || audioCtx.state !== 'running') return;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(bassline[step % bassline.length], audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.045, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.18);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.2);
+        step++;
+    }, 220);
+}
+
+// --- 2. TRUE 3D POLYHEDRAL SHIP MODEL (Identik dengan True3DShipModel.java) ---
+class True3DShipModel {
+    constructor() {
+        this.vertices = [];
+        this.faces = [];
+        this.build();
+    }
+
+    addV(x, y, z) {
+        this.vertices.push({x, y, z});
+        return this.vertices.length - 1;
+    }
+
+    addQuad(a, b, c, d, color, isGlow) {
+        this.faces.push({indices: [a, b, c, d], color, isGlow});
+    }
+
+    addTri(a, b, c, color, isGlow) {
+        this.faces.push({indices: [a, b, c], color, isGlow});
+    }
+
+    build() {
+        // Moncong lancip & Fuselage (+Z Depan, -Z Belakang, -Y Atas, +Y Bawah)
+        const noseTip = this.addV(0, -2, 75);
+        const fTopL = this.addV(-8, -8, 35);
+        const fTopR = this.addV(8, -8, 35);
+        const fBotL = this.addV(-10, 8, 35);
+        const fBotR = this.addV(10, 8, 35);
+
+        this.addTri(noseTip, fTopL, fTopR, "#cfd8dc", false);
+        this.addTri(noseTip, fBotL, fTopL, "#90a4ae", false);
+        this.addTri(noseTip, fTopR, fBotR, "#90a4ae", false);
+        this.addTri(noseTip, fBotR, fBotL, "#546e7a", false);
+
+        // Kokpit Kaca Reflektif Cyan
+        const cpNose = this.addV(0, -9, 38);
+        const cpApex = this.addV(0, -16, 15);
+        const cpLeft = this.addV(-5, -12, 18);
+        const cpRight = this.addV(5, -12, 18);
+        const cpRear = this.addV(0, -12, -2);
+
+        this.addTri(cpNose, cpLeft, cpApex, "#00e5ff", true);
+        this.addTri(cpNose, cpApex, cpRight, "#80d8ff", true);
+        this.addTri(cpApex, cpLeft, cpRear, "#0091ea", true);
+        this.addTri(cpApex, cpRear, cpRight, "#00b0ff", true);
+
+        // Badan Tengah Fuselage
+        const mTopL = this.addV(-14, -10, -10);
+        const mTopR = this.addV(14, -10, -10);
+        const mBotL = this.addV(-16, 9, -10);
+        const mBotR = this.addV(16, 9, -10);
+
+        this.addQuad(fTopL, mTopL, mTopR, fTopR, "#b0bec5", false);
+        this.addQuad(fTopL, fBotL, mBotL, mTopL, "#78909c", false);
+        this.addQuad(fTopR, mTopR, mBotR, fBotR, "#78909c", false);
+        this.addQuad(fBotL, fBotR, mBotR, mBotL, "#37474f", false);
+
+        // Nacelle Engine Cowlings
+        const nacLT = this.addV(-11, -15, 5);
+        const nacLR = this.addV(-12, -14, -28);
+        const nacRT = this.addV(11, -15, 5);
+        const nacRR = this.addV(12, -14, -28);
+
+        this.addTri(fTopL, nacLT, mTopL, "#607d8b", false);
+        this.addTri(fTopR, mTopR, nacRT, "#607d8b", false);
+        this.addQuad(nacLT, nacLR, mTopL, mTopL, "#455a64", false);
+        this.addQuad(nacRT, mTopR, mTopR, nacRR, "#455a64", false);
+
+        // Buritan Belakang Mesin
+        const rTopL = this.addV(-16, -9, -36);
+        const rTopR = this.addV(16, -9, -36);
+        const rBotL = this.addV(-16, 8, -36);
+        const rBotR = this.addV(16, 8, -36);
+
+        this.addQuad(mTopL, rTopL, rTopR, mTopR, "#90a4ae", false);
+        this.addQuad(mTopL, mBotL, rBotL, rTopL, "#607d8b", false);
+        this.addQuad(mTopR, rTopR, rBotR, mBotR, "#607d8b", false);
+        this.addQuad(mBotL, rBotL, rBotR, mBotR, "#263238", false);
+        this.addQuad(rTopL, rTopR, rBotR, rBotL, "#1c2833", false);
+
+        // Sayap Inverted-Gull 3D (Kiri & Kanan)
+        // Kiri
+        const wRootFL = this.addV(-14, 0, 18);
+        const wRootRL = this.addV(-16, 2, -26);
+        const wElbFL = this.addV(-38, 7, 0); // Menukik turun di siku
+        const wElbRL = this.addV(-40, 9, -24);
+        const wTipFL = this.addV(-72, 4, -8);  // Naik di ujung
+        const wTipRL = this.addV(-70, 6, -32);
+        const wRailL = this.addV(-71, -4, -18);
+
+        this.addQuad(wRootFL, wElbFL, wElbRL, wRootRL, "#78909c", false);
+        this.addQuad(wElbFL, wTipFL, wTipRL, wElbRL, "#90a4ae", false);
+        this.addTri(wTipFL, wRailL, wTipRL, "#37474f", false);
+        this.addQuad(wRootRL, wElbRL, wElbFL, wRootFL, "#37474f", false);
+        this.addQuad(wElbRL, wTipRL, wTipFL, wElbFL, "#263238", false);
+
+        // Kanan
+        const wRootFR = this.addV(14, 0, 18);
+        const wRootRR = this.addV(16, 2, -26);
+        const wElbFR = this.addV(38, 7, 0);
+        const wElbRR = this.addV(40, 9, -24);
+        const wTipFR = this.addV(72, 4, -8);
+        const wTipRR = this.addV(70, 6, -32);
+        const wRailR = this.addV(71, -4, -18);
+
+        this.addQuad(wRootFR, wRootRR, wElbRR, wElbFR, "#78909c", false);
+        this.addQuad(wElbFR, wElbRR, wTipRR, wTipFR, "#90a4ae", false);
+        this.addTri(wTipFR, wTipRR, wRailR, "#37474f", false);
+        this.addQuad(wRootRR, wRootFR, wElbFR, wElbRR, "#37474f", false);
+        this.addQuad(wElbRR, wTipRR, wTipFR, wElbFR, "#263238", false);
+
+        // Triple 3D Rear Cylindrical Nozzles
+        this.buildNozzle(0, 0, -36, -44, 9.5, 7.5, "#e0f7fa");
+        this.buildNozzle(-11, 0, -36, -42, 6.5, 5.0, "#80d8ff");
+        this.buildNozzle(11, 0, -36, -42, 6.5, 5.0, "#80d8ff");
+    }
+
+    buildNozzle(cx, cy, zFront, zBack, rF, rB, innerCol) {
+        const segs = 8;
+        const fv = [], bv = [];
+        for (let i = 0; i < segs; i++) {
+            const ang = (i * Math.PI * 2) / segs;
+            fv.push(this.addV(cx + Math.cos(ang) * rF, cy + Math.sin(ang) * rF, zFront));
+            bv.push(this.addV(cx + Math.cos(ang) * rB, cy + Math.sin(ang) * rB, zBack));
+        }
+        for (let i = 0; i < segs; i++) {
+            const next = (i + 1) % segs;
+            this.addQuad(fv[i], fv[next], bv[next], bv[i], "#455a64", false);
+        }
+        const centerB = this.addV(cx, cy, zBack);
+        for (let i = 0; i < segs; i++) {
+            const next = (i + 1) % segs;
+            this.addTri(bv[i], bv[next], centerB, innerCol, true);
+        }
+    }
+}
+
+const ship3DModel = new True3DShipModel();
+
+// --- 3. 3D RENDERER (Painter's Algorithm, Normals, Specular, Thrusters) ---
+function render3DShip(ctx, cx, cy, scale, roll, pitch, yaw, animTime, shipColor, drawThrusters) {
+    const verts = ship3DModel.vertices;
+    const numV = verts.length;
+    const tx = new Float64Array(numV);
+    const ty = new Float64Array(numV);
+    const tz = new Float64Array(numV);
+    const sx = new Float64Array(numV);
+    const sy = new Float64Array(numV);
+
+    const cosY = Math.cos(yaw), sinY = Math.sin(yaw);
+    const cosP = Math.cos(pitch), sinP = Math.sin(pitch);
+    const cosR = Math.cos(roll), sinR = Math.sin(roll);
+
+    const camDist = 260.0;
+    const focal = 260.0;
+    const bScale = scale * 0.95;
+
+    for (let i = 0; i < numV; i++) {
+        const v = verts[i];
+        // Yaw
+        const x1 = v.x * cosY + v.z * sinY;
+        const y1 = v.y;
+        const z1 = -v.x * sinY + v.z * cosY;
+        // Pitch
+        const x2 = x1;
+        const y2 = y1 * cosP - z1 * sinP;
+        const z2 = y1 * sinP + z1 * cosP;
+        // Roll
+        const x3 = x2 * cosR - y2 * sinR;
+        const y3 = x2 * sinR + y2 * cosR;
+        const z3 = z2;
+
+        tx[i] = x3; ty[i] = y3; tz[i] = z3;
+
+        const dist = Math.max(10.0, camDist - z3);
+        const pScale = (focal / dist) * bScale;
+        sx[i] = cx + x3 * pScale;
+        sy[i] = cy + y3 * pScale;
+    }
+
+    // Directional Light Vector
+    const lx = 0.25, ly = -0.85, lz = -0.45;
+    const lLen = Math.sqrt(lx*lx + ly*ly + lz*lz);
+    const nlx = lx/lLen, nly = ly/lLen, nlz = lz/lLen;
+
+    const faces = ship3DModel.faces.map(f => {
+        const idx = f.indices;
+        let sumZ = 0;
+        for (let id of idx) sumZ += tz[id];
+        const avgZ = sumZ / idx.length;
+
+        // Normal
+        const ux = tx[idx[1]] - tx[idx[0]];
+        const uy = ty[idx[1]] - ty[idx[0]];
+        const uz = tz[idx[1]] - tz[idx[0]];
+        const vx = tx[idx[2]] - tx[idx[0]];
+        const vy = ty[idx[2]] - ty[idx[0]];
+        const vz = tz[idx[2]] - tz[idx[0]];
+
+        let nx = uy*vz - uz*vy;
+        let ny = uz*vx - ux*vz;
+        let nz = ux*vy - uy*vx;
+        const len = Math.sqrt(nx*nx + ny*ny + nz*nz);
+        if (len > 0.0001) { nx /= len; ny /= len; nz /= len; }
+
+        const dot = nx*nlx + ny*nly + nz*nlz;
+        const light = Math.min(1.0, Math.max(0.22, 0.38 + Math.max(0, dot) * 0.62));
+        return {face: f, avgZ, light};
+    });
+
+    faces.sort((a, b) => b.avgZ - a.avgZ);
+
+    ctx.save();
+
+    // Outer Aura Halo
+    const haloSpan = 140 * scale;
+    const hGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, haloSpan * 0.65);
+    hGrad.addColorStop(0, 'rgba(0, 229, 255, 0.28)');
+    hGrad.addColorStop(0.7, 'rgba(0, 80, 255, 0.08)');
+    hGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    ctx.fillStyle = hGrad;
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, haloSpan * 0.65, haloSpan * 0.5, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Draw Polygons
+    for (let item of faces) {
+        const f = item.face;
+        const idx = f.indices;
+        ctx.beginPath();
+        ctx.moveTo(sx[idx[0]], sy[idx[0]]);
+        for (let j = 1; j < idx.length; j++) {
+            ctx.lineTo(sx[idx[j]], sy[idx[j]]);
+        }
+        ctx.closePath();
+
+        if (f.isGlow) {
+            ctx.fillStyle = f.color;
+            ctx.fill();
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 1.0 * scale;
+            ctx.stroke();
+        } else {
+            // Apply lighting to color
+            ctx.fillStyle = adjustBrightness(f.color, item.light);
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(0, 229, 255, 0.35)';
+            ctx.lineWidth = 0.85 * scale;
+            ctx.stroke();
+        }
+    }
+
+    // Triple Thruster Flames
+    if (drawThrusters) {
+        const cIdx = numV - 1;
+        const rIdx = numV - 18;
+        const lIdx = numV - 35;
+        const pulse = Math.sin(animTime * 6.5) * (4.5 * scale);
+        const boost = Math.max(0, -pitch) * 18.0 * scale;
+
+        drawFlame(ctx, sx[lIdx], sy[lIdx], 9.0 * scale, 22.0 * scale + pulse + boost * 0.7);
+        drawFlame(ctx, sx[rIdx], sy[rIdx], 9.0 * scale, 22.0 * scale + pulse + boost * 0.7);
+        drawMainPlasmaFlame(ctx, sx[cIdx], sy[cIdx], 14.0 * scale, 36.0 * scale + pulse * 1.5 + boost, animTime);
+    }
+
+    ctx.restore();
+}
+
+function drawFlame(ctx, x, y, w, h) {
+    ctx.save();
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.ellipse(x, y, w/2, w*0.35, 0, 0, Math.PI*2);
+    ctx.fill();
+
+    const grad = ctx.createLinearGradient(x, y, x, y + h);
+    grad.addColorStop(0, '#ffffff');
+    grad.addColorStop(0.25, '#80d8ff');
+    grad.addColorStop(0.65, '#00e5ff');
+    grad.addColorStop(1, 'rgba(0, 229, 255, 0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.ellipse(x, y + h/2, w/2, h/2, 0, 0, Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+}
+
+function drawMainPlasmaFlame(ctx, x, y, w, h, time) {
+    ctx.save();
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.ellipse(x, y, w/2, w*0.35, 0, 0, Math.PI*2);
+    ctx.fill();
+
+    const grad = ctx.createLinearGradient(x, y, x, y + h);
+    grad.addColorStop(0, '#ffffff');
+    grad.addColorStop(0.2, '#e0f7fa');
+    grad.addColorStop(0.5, '#00e5ff');
+    grad.addColorStop(0.85, '#0091ea');
+    grad.addColorStop(1, 'rgba(0, 100, 255, 0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.ellipse(x, y + h/2, w/2, h/2, 0, 0, Math.PI*2);
+    ctx.fill();
+
+    // Lightning Arcs
+    ctx.strokeStyle = '#80d8ff';
+    ctx.lineWidth = 2.2;
+    ctx.beginPath();
+    let px = x, py = y + w * 0.4;
+    ctx.moveTo(px, py);
+    const segs = 6;
+    for (let i = 1; i <= segs; i++) {
+        const nx = x + Math.sin(time * 12.0 + i * 1.5) * (w * 0.4);
+        const ny = y + (i * h) / segs;
+        ctx.lineTo(nx, ny);
+    }
+    ctx.stroke();
+    ctx.restore();
+}
+
+function adjustBrightness(hex, factor) {
+    // Quick hex adjust
+    const num = parseInt(hex.replace('#',''), 16);
+    let r = Math.min(255, Math.floor(((num >> 16) & 255) * factor));
+    let g = Math.min(255, Math.floor(((num >> 8) & 255) * factor));
+    let b = Math.min(255, Math.floor((num & 255) * factor));
+    return `rgb(${r},${g},${b})`;
+}
+
+// --- 4. GAME ENGINE, ENTITIES & PERSPECTIVE CAMERA ---
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const prevCanvas = document.getElementById('preview-canvas');
+const pCtx = prevCanvas.getContext('2d');
+
+const WIDTH = 1050;
+const HEIGHT = 700;
+const VANISH_X = WIDTH / 2;
+const VANISH_Y = 275;
+const FOCAL = 340;
+
+const Camera3D = {
+    x: 0, y: 0, z: 0,
+    update(px, py, pz) {
+        this.x += ((px * 0.45) - this.x) * 0.12;
+        this.y += ((py * 0.35) - this.y) * 0.12;
+        this.z += (pz - this.z) * 0.20;
+    },
+    projectX(wx, wz) {
+        const d = (wz - this.z) + FOCAL;
+        return d <= 5 ? VANISH_X : VANISH_X + ((wx - this.x) * FOCAL) / d;
+    },
+    projectY(wy, wz) {
+        const d = (wz - this.z) + FOCAL;
+        return d <= 5 ? VANISH_Y : VANISH_Y + ((wy - this.y) * FOCAL) / d;
+    },
+    getScale(wz) {
+        const d = (wz - this.z) + FOCAL;
+        return d <= 5 ? 0.05 : Math.max(0.04, Math.min(2.5, FOCAL / d));
+    }
+};
+
+// Ship Classes Data
+const SHIP_TYPES = [
+    {
+        name: "FALCON X-1",
+        desc: "Tipe: Interceptor Lincah. Dirancang untuk akselerasi instan dan manuver tajam mengejar Galon Kosmik.",
+        color: "#00e5ff",
+        speed: 8.5,
+        handling: 0.18,
+        magnet: 90
+    },
+    {
+        name: "TITAN AEGIS",
+        desc: "Tipe: Heavy Cruiser Baja. Bodi kokoh berlapis armor titanium tebal dengan perisai kinetik tangguh.",
+        color: "#ff1744",
+        speed: 6.5,
+        handling: 0.12,
+        magnet: 130
+    },
+    {
+        name: "PHANTOM ECLIPSE",
+        desc: "Tipe: Void Harvester. Menggunakan generator gravitasi kosmik untuk menyedot Galon dari jarak sangat jauh.",
+        color: "#d500f9",
+        speed: 7.5,
+        handling: 0.15,
+        magnet: 220
+    }
+];
+
+let selectedShipIdx = 0;
+let selectedDrone = "MAGNET";
+let currentPilot = "COMMANDER";
+
+// Levels Data
+const SECTORS = [
+    { name: "ORBIT BUMI", target: 12, neb1: "#0d47a1", neb2: "#00bcd4", speed: 4.2 },
+    { name: "SABUK ASTEROID", target: 14, neb1: "#e65100", neb2: "#ff9100", speed: 4.6 },
+    { name: "CYBER NEBULA", target: 16, neb1: "#4a148c", neb2: "#00e5ff", speed: 5.0 },
+    { name: "BADAI SURYA", target: 18, neb1: "#b71c1c", neb2: "#ffea00", speed: 5.4 },
+    { name: "INTI ALIEN BOSS", target: 20, neb1: "#004d40", neb2: "#d500f9", speed: 5.8 }
+];
+
+let currentSectorIdx = 0;
+let totalGalons = 0;
+let levelGalons = 0;
+let score = 0;
+let health = 3;
+let invulnerableTimer = 0;
+let isPaused = false;
+let inWarp = false;
+let warpTimer = 0;
+let gameRunning = false;
+
+// Entities
+let playerX = 0, playerY = 75, playerZ = 120;
+let playerRoll = 0, playerPitch = 0, forwardSpeed = 0;
+let hoverAnim = 0, engineAnim = 0, hangarAngle = 0;
+const lasers = [];
+const galons = [];
+const ufos = [];
+const particles = [];
+const floatingTexts = [];
+
+// Stars and Background
+const stars = [];
+for (let i = 0; i < 220; i++) {
+    stars.push({
+        x: (Math.random() * 2 - 1) * 1500,
+        y: -600 + Math.random() * 700,
+        z: Math.random() * 1800,
+        color: Math.random() < 0.35 ? '#80d8ff' : (Math.random() < 0.65 ? '#fff9c4' : '#ffffff')
+    });
+}
+let gridOffset = 0;
+
+// Input Keys
+const keys = { w: false, s: false, a: false, d: false, space: false };
+window.addEventListener('keydown', e => {
+    initAudio();
+    const k = e.key.toLowerCase();
+    if (k === 'w' || e.key === 'ArrowUp') keys.w = true;
+    if (k === 's' || e.key === 'ArrowDown') keys.s = true;
+    if (k === 'a' || e.key === 'ArrowLeft') keys.a = true;
+    if (k === 'd' || e.key === 'ArrowRight') keys.d = true;
+    if (e.key === ' ') {
+        e.preventDefault();
+        keys.space = true;
+        shootLasers();
+    }
+    if (k === 'm') {
+        musicEnabled = !musicEnabled;
+        document.getElementById('btn-toggle-audio').innerText = `🎵 AUDIO: ${musicEnabled ? 'ON' : 'OFF'}`;
+    }
+    if (e.key === 'Escape' && gameRunning) {
+        isPaused = !isPaused;
+    }
+});
+window.addEventListener('keyup', e => {
+    const k = e.key.toLowerCase();
+    if (k === 'w' || e.key === 'ArrowUp') keys.w = false;
+    if (k === 's' || e.key === 'ArrowDown') keys.s = false;
+    if (k === 'a' || e.key === 'ArrowLeft') keys.a = false;
+    if (k === 'd' || e.key === 'ArrowRight') keys.d = false;
+    if (e.key === ' ') keys.space = false;
+});
+
+// Touch event bindings
+function bindTouch(id, key) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener('touchstart', e => { e.preventDefault(); initAudio(); keys[key] = true; if(key==='space') shootLasers(); });
+    el.addEventListener('touchend', e => { e.preventDefault(); keys[key] = false; });
+}
+bindTouch('btn-left', 'a');
+bindTouch('btn-right', 'd');
+bindTouch('btn-fwd', 'w');
+bindTouch('btn-bwd', 's');
+bindTouch('btn-fire', 'space');
+
+// Check touch support
+if ('ontouchstart' in window) {
+    document.getElementById('touch-controls').classList.remove('hidden');
+}
+
+// --- 5. SHOOTING & PARTICLES ---
+function shootLasers() {
+    if (!gameRunning || isPaused || health <= 0) return;
+    const ship = SHIP_TYPES[selectedShipIdx];
+    const leftX = playerX - 42;
+    const rightX = playerX + 42;
+    const startY = playerY + 4;
+    const startZ = playerZ + 15;
+
+    lasers.push({ x: leftX, y: startY, z: startZ, vx: (playerX * 0.35 - leftX) * 0.04, vy: (playerY * 0.45 - startY) * 0.04 });
+    lasers.push({ x: rightX, y: startY, z: startZ, vx: (playerX * 0.35 - rightX) * 0.04, vy: (playerY * 0.45 - startY) * 0.04 });
+
+    if (selectedDrone === "BLASTER") {
+        lasers.push({ x: playerX, y: startY - 18, z: startZ, vx: 0, vy: -0.15 });
+    }
+
+    playLaserSound();
+}
+
+function spawnExplosion(x, y, z, color) {
+    for (let i = 0; i < 22; i++) {
+        const ang = Math.random() * Math.PI * 2;
+        const spd = 2.0 + Math.random() * 5.0;
+        particles.push({
+            x, y, z,
+            vx: Math.cos(ang) * spd,
+            vy: Math.sin(ang) * spd,
+            life: 0.4 + Math.random() * 0.3,
+            maxLife: 0.7,
+            size: 5 + Math.random() * 4,
+            color
+        });
+    }
+}
+
+// --- 6. GAME OVER & LEADERBOARD SYSTEM ---
+function getLeaderboard() {
+    try {
+        const data = localStorage.getItem('star_invader_leaderboard');
+        return data ? JSON.parse(data) : [
+            { name: "CYBER_ACE", galons: 48, score: 7200, time: "Hari Ini" },
+            { name: "STAR_LORD", galons: 36, score: 5400, time: "Kemarin" },
+            { name: "NOVA_PILOT", galons: 28, score: 4100, time: "2 hari lalu" }
+        ];
+    } catch(e) { return []; }
+}
+
+function saveScore(name, galons, score) {
+    try {
+        const list = getLeaderboard();
+        list.push({ name: name || "PILOT", galons, score, time: "Baru saja" });
+        list.sort((a,b) => b.galons - a.galons);
+        localStorage.setItem('star_invader_leaderboard', JSON.stringify(list.slice(0, 10)));
+    } catch(e) {}
+}
+
+function showLeaderboardUI() {
+    const list = getLeaderboard();
+    const tbody = document.getElementById('leaderboard-body');
+    tbody.innerHTML = '';
+    list.forEach((entry, idx) => {
+        const medal = idx === 0 ? "🥇 1" : (idx === 1 ? "🥈 2" : (idx === 2 ? "🥉 3" : `  ${idx + 1}`));
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td style="color:#ffea00; font-weight:bold;">${medal}</td>
+            <td style="color:#fff; font-weight:bold;">${entry.name}</td>
+            <td style="color:#00e5ff; font-weight:bold;">💧 ${entry.galons}</td>
+            <td style="color:#ffd600;">${entry.score}</td>
+            <td style="color:#b0bec5; font-size:11px;">${entry.time}</td>
+        `;
+        tbody.appendChild(tr);
+    });
+    document.getElementById('leaderboard-overlay').classList.remove('hidden');
+}
+
+function onGameOver() {
+    gameRunning = false;
+    saveScore(currentPilot, totalGalons, score);
+    document.getElementById('debrief-pilot').innerText = `PILOT: ${currentPilot.toUpperCase()} (${SHIP_TYPES[selectedShipIdx].name})`;
+    document.getElementById('debrief-sector').innerText = `SEKTOR TERTINGGI: ${SECTORS[currentSectorIdx].name}`;
+    document.getElementById('debrief-galon').innerText = `💧 TOTAL GALON: ${totalGalons} Galon`;
+    document.getElementById('debrief-score').innerText = `SKOR MISI: ${score}`;
+    document.getElementById('gameover-overlay').classList.remove('hidden');
+}
+
+// --- 7. MAIN GAME LOOP ---
+let lastTime = performance.now();
+let lastEnemySpawn = 0;
+let lastGalonSpawn = 0;
+
+function gameLoop(now) {
+    requestAnimationFrame(gameLoop);
+    const dt = (now - lastTime) / 1000.0;
+    lastTime = now;
+
+    // Hangar 360 Turntable Preview
+    hangarAngle += 0.035;
+    pCtx.clearRect(0, 0, 340, 240);
+    renderHangarTurntable(pCtx, SHIP_TYPES[selectedShipIdx], hangarAngle);
+
+    if (!gameRunning || isPaused) return;
+
+    // 1. Camera Tracking
+    Camera3D.update(playerX, playerY, playerZ);
+
+    // 2. Player Controls
+    const ship = SHIP_TYPES[selectedShipIdx];
+    let targetRoll = 0;
+    if (keys.a) { playerX -= ship.speed; targetRoll = -0.65; }
+    if (keys.d) { playerX += ship.speed; targetRoll = 0.65; }
+    if (playerX < -360) playerX = -360;
+    if (playerX > 360) playerX = 360;
+
+    let targetSpeedZ = 0;
+    let targetPitch = 0;
+    if (keys.w) { targetSpeedZ = ship.speed * 1.1; targetPitch = -0.45; }
+    if (keys.s) { targetSpeedZ = -ship.speed * 0.9; targetPitch = 0.40; }
+
+    forwardSpeed += (targetSpeedZ - forwardSpeed) * 0.25;
+    playerZ += forwardSpeed;
+    if (playerZ < 60) playerZ = 60;
+    if (playerZ > 320) playerZ = 320;
+
+    hoverAnim += 0.06;
+    playerY = 75 + Math.sin(hoverAnim) * 4.0;
+    playerRoll += (targetRoll - playerRoll) * ship.handling;
+    playerPitch += (targetPitch - playerPitch) * 0.2;
+    engineAnim += (keys.w ? 0.65 : 0.35);
+
+    if (invulnerableTimer > 0) invulnerableTimer -= dt;
+
+    // 3. Spawners
+    const curSec = SECTORS[currentSectorIdx];
+    if (now - lastEnemySpawn > 1600 && !inWarp) {
+        ufos.push({
+            x: (Math.random() * 2 - 1) * 340,
+            y: 60 + Math.random() * 25,
+            z: 1650,
+            speed: curSec.speed,
+            anim: Math.random() * 10
+        });
+        lastEnemySpawn = now;
+    }
+
+    if (now - lastGalonSpawn > 1300 && !inWarp) {
+        galons.push({
+            x: (Math.random() * 2 - 1) * 320,
+            y: 60 + Math.random() * 20,
+            z: 1650,
+            golden: Math.random() < 0.22,
+            rot: 0
+        });
+        lastGalonSpawn = now;
+    }
+
+    // Warp timer
+    if (inWarp) {
+        warpTimer -= dt;
+        if (warpTimer <= 0) inWarp = false;
+    }
+
+    // 4. Update Entities
+    updateEntities(dt, ship);
+
+    // 5. Render Scene
+    renderScene();
+}
+
+function updateEntities(dt, ship) {
+    // Lasers
+    for (let i = lasers.length - 1; i >= 0; i--) {
+        const l = lasers[i];
+        l.x += l.vx;
+        l.y += l.vy;
+        l.z += 64.0;
+        if (l.z > 1750) lasers.splice(i, 1);
+    }
+
+    // Galons & Magnet Attraction
+    let magRange = ship.magnet;
+    if (selectedDrone === "MAGNET") magRange *= 1.35;
+
+    for (let i = galons.length - 1; i >= 0; i--) {
+        const g = galons[i];
+        g.z -= 4.2;
+        g.rot += 0.05;
+
+        // Magnet attraction
+        const dx = playerX - g.x;
+        const dy = playerY - g.y;
+        const dz = playerZ - g.z;
+        const dist3D = Math.sqrt(dx*dx + dy*dy + dz*dz);
+        if (dist3D < magRange) {
+            g.x += dx * 0.10;
+            g.y += dy * 0.10;
+        }
+
+        // Pickup collision
+        if (Math.abs(g.z - playerZ) < 48.0 && Math.sqrt(dx*dx + dy*dy) < 48.0) {
+            const val = g.golden ? 3 : 1;
+            totalGalons += val;
+            levelGalons += val;
+            score += g.golden ? 300 : 100;
+            playGalonSound();
+            floatingTexts.push({
+                text: g.golden ? "✨ +3 GALON EMAS!" : "💧 +1 GALON!",
+                x: Camera3D.projectX(g.x, g.z) - 30,
+                y: Camera3D.projectY(g.y, g.z),
+                life: 1.2,
+                color: g.golden ? "#ffd700" : "#00e5ff"
+            });
+            galons.splice(i, 1);
+            checkLevelProgress();
+            continue;
+        }
+
+        if (g.z < 25) galons.splice(i, 1);
+    }
+
+    // UFOs & Laser Hit / Player Collision
+    for (let i = ufos.length - 1; i >= 0; i--) {
+        const u = ufos[i];
+        u.z -= u.speed;
+        u.anim += 0.08;
+        u.x += Math.sin(u.anim) * 1.2;
+
+        // Laser vs UFO
+        for (let j = lasers.length - 1; j >= 0; j--) {
+            const l = lasers[j];
+            if (Math.abs(l.z - u.z) < 55) {
+                const ldx = l.x - u.x;
+                const ldy = l.y - u.y;
+                if (Math.sqrt(ldx*ldx + ldy*ldy) < 44) {
+                    spawnExplosion(u.x, u.y, u.z, "#d500f9");
+                    playHitSound();
+                    score += 250;
+                    lasers.splice(j, 1);
+                    ufos.splice(i, 1);
+                    break;
+                }
+            }
+        }
+
+        // Player vs UFO Collision (Lose 1 Life)
+        if (invulnerableTimer <= 0 && Math.abs(u.z - playerZ) < 45) {
+            const pdx = playerX - u.x;
+            const pdy = playerY - u.y;
+            if (Math.sqrt(pdx*pdx + pdy*pdy) < 46) {
+                health--;
+                invulnerableTimer = 0.8;
+                playHitSound();
+                spawnExplosion(u.x, u.y, u.z, "#ff1744");
+                ufos.splice(i, 1);
+                if (health <= 0) {
+                    onGameOver();
+                    return;
+                }
+                continue;
+            }
+        }
+
+        if (u.z < 25) ufos.splice(i, 1); // Passes peacefully!
+    }
+
+    // Floating texts
+    for (let i = floatingTexts.length - 1; i >= 0; i--) {
+        const ft = floatingTexts[i];
+        ft.y -= 0.8;
+        ft.life -= dt;
+        if (ft.life <= 0) floatingTexts.splice(i, 1);
+    }
+}
+
+function checkLevelProgress() {
+    const curSec = SECTORS[currentSectorIdx];
+    if (levelGalons >= curSec.target && currentSectorIdx < SECTORS.length - 1) {
+        currentSectorIdx++;
+        levelGalons = 0;
+        inWarp = true;
+        warpTimer = 3.0;
+        playWarpSound();
+        floatingTexts.push({
+            text: "🚀 HYPERSPACE WARP ACTIVATED!",
+            x: WIDTH / 2 - 160,
+            y: HEIGHT / 2 - 30,
+            life: 3.0,
+            color: "#00e5ff"
+        });
+    }
+}
+
+// --- 8. RENDERER (COSMIC SPACE, 3D SHIPS, COCKPIT HUD) ---
+function renderScene() {
+    ctx.clearRect(0, 0, WIDTH, HEIGHT);
+
+    // 1. Deep Space Void
+    ctx.fillStyle = '#030713';
+    ctx.fillRect(0, 0, WIDTH, HEIGHT);
+
+    // 2. Floating Cosmic Nebulae
+    const curSec = SECTORS[currentSectorIdx];
+    const nGrad = ctx.createRadialGradient(WIDTH * 0.3, HEIGHT * 0.4, 0, WIDTH * 0.3, HEIGHT * 0.4, 380);
+    nGrad.addColorStop(0, curSec.neb1 + '55');
+    nGrad.addColorStop(0.7, curSec.neb2 + '18');
+    nGrad.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = nGrad;
+    ctx.beginPath();
+    ctx.arc(WIDTH * 0.3, HEIGHT * 0.4, 380, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 3. 3D Perspective Cosmic Cyber Grid Floor
+    const floorY = 220.0;
+    const horizY = VANISH_Y;
+    gridOffset = (gridOffset + (inWarp ? 1.4 : 0.25)) % 1.0;
+
+    // Glowing Horizon
+    const hGrad = ctx.createLinearGradient(0, horizY - 10, 0, horizY + 20);
+    hGrad.addColorStop(0, 'rgba(0,0,0,0)');
+    hGrad.addColorStop(0.4, curSec.neb2 + '88');
+    hGrad.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = hGrad;
+    ctx.fillRect(0, horizY - 10, WIDTH, 30);
+
+    // Longitudinal grid lines
+    ctx.lineWidth = 1.2;
+    for (let i = -10; i <= 10; i++) {
+        const wx = i * 85.0;
+        const x1 = Camera3D.projectX(wx, 60.0);
+        const y1 = Camera3D.projectY(floorY, 60.0);
+        const x2 = Camera3D.projectX(wx, 1500.0);
+        const y2 = Camera3D.projectY(floorY, 1500.0);
+        ctx.strokeStyle = curSec.neb2 + '44';
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
+    }
+
+    // Latitudinal horizontal moving lines
+    for (let j = 0; j < 14; j++) {
+        const frac = (j + gridOffset) / 14;
+        const z = 70.0 + Math.pow(frac, 2.2) * 1400.0;
+        const sy = Camera3D.projectY(floorY, z);
+        const lx = Camera3D.projectX(-850, z);
+        const rx = Camera3D.projectX(850, z);
+        ctx.strokeStyle = curSec.neb2 + Math.floor((1 - frac) * 90).toString(16).padStart(2,'0');
+        ctx.beginPath();
+        ctx.moveTo(lx, sy);
+        ctx.lineTo(rx, sy);
+        ctx.stroke();
+    }
+
+    // 4. Stars
+    for (let s of stars) {
+        s.z -= inWarp ? 75 : 12;
+        if (s.z <= 25) s.z = 1750;
+        const sx = Camera3D.projectX(s.x, s.z);
+        const sy = Camera3D.projectY(s.y, s.z);
+        const scale = Camera3D.getScale(s.z);
+        if (inWarp) {
+            ctx.strokeStyle = s.color;
+            ctx.lineWidth = Math.max(1, 3.5 * scale);
+            ctx.beginPath();
+            ctx.moveTo(sx, sy);
+            ctx.lineTo(Camera3D.projectX(s.x, s.z + 100), Camera3D.projectY(s.y, s.z + 100));
+            ctx.stroke();
+        } else {
+            ctx.fillStyle = s.color;
+            ctx.beginPath();
+            ctx.arc(sx, sy, Math.max(1, 3.5 * scale), 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
+
+    // 5. Lasers
+    for (let l of lasers) {
+        const sx1 = Camera3D.projectX(l.x, l.z);
+        const sy1 = Camera3D.projectY(l.y, l.z);
+        const sx2 = Camera3D.projectX(l.x, l.z + 65);
+        const sy2 = Camera3D.projectY(l.y, l.z + 65);
+        const sc = Camera3D.getScale(l.z);
+
+        ctx.strokeStyle = '#00e5ff';
+        ctx.lineWidth = Math.max(2, 8 * sc);
+        ctx.beginPath(); ctx.moveTo(sx1, sy1); ctx.lineTo(sx2, sy2); ctx.stroke();
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = Math.max(1, 4 * sc);
+        ctx.beginPath(); ctx.moveTo(sx1, sy1); ctx.lineTo(sx2, sy2); ctx.stroke();
+    }
+
+    // 6. Galons 3D
+    for (let g of galons) {
+        const sx = Camera3D.projectX(g.x, g.z);
+        const sy = Camera3D.projectY(g.y, g.z);
+        const sc = Camera3D.getScale(g.z);
+        const gw = 64 * sc;
+        const gh = 86 * sc;
+
+        // Shadow
+        const shX = Camera3D.projectX(g.x, g.z);
+        const shY = Camera3D.projectY(floorY, g.z);
+        ctx.fillStyle = 'rgba(0,0,0,0.55)';
+        ctx.beginPath();
+        ctx.ellipse(shX, shY, gw * 0.45, gh * 0.14, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Aura
+        const aura = ctx.createRadialGradient(sx, sy, 0, sx, sy, gw);
+        aura.addColorStop(0, g.golden ? 'rgba(255,215,0,0.65)' : 'rgba(0,229,255,0.55)');
+        aura.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = aura;
+        ctx.beginPath();
+        ctx.arc(sx, sy, gw, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Gallon Cylinder Body
+        ctx.fillStyle = g.golden ? '#ffd700' : '#0288d1';
+        ctx.beginPath();
+        ctx.roundRect(sx - gw/2, sy - gh/2, gw, gh, 8 * sc);
+        ctx.fill();
+        ctx.fillStyle = g.golden ? '#fff9c4' : '#4fc3f7';
+        ctx.fillRect(sx - gw * 0.4, sy - gh * 0.35, gw * 0.8, gh * 0.65);
+        // Red cap
+        ctx.fillStyle = '#ff1744';
+        ctx.fillRect(sx - gw * 0.22, sy - gh/2 - 4 * sc, gw * 0.44, 8 * sc);
+    }
+
+    // 7. UFOs 3D
+    for (let u of ufos) {
+        const sx = Camera3D.projectX(u.x, u.z);
+        const sy = Camera3D.projectY(u.y, u.z);
+        const sc = Camera3D.getScale(u.z);
+        const uw = 88 * sc;
+        const uh = 52 * sc;
+
+        // Shadow
+        const shX = Camera3D.projectX(u.x, u.z);
+        const shY = Camera3D.projectY(floorY, u.z);
+        ctx.fillStyle = 'rgba(0,0,0,0.55)';
+        ctx.beginPath();
+        ctx.ellipse(shX, shY, uw * 0.48, uh * 0.16, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Saucer Dome & Disc
+        ctx.fillStyle = '#d500f9';
+        ctx.beginPath();
+        ctx.ellipse(sx, sy - 8 * sc, uw * 0.3, uh * 0.4, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#263238';
+        ctx.beginPath();
+        ctx.ellipse(sx, sy, uw/2, uh/2, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#00e5ff';
+        ctx.lineWidth = 1.5 * sc;
+        ctx.stroke();
+
+        // Rotating LEDs
+        for (let i = 0; i < 6; i++) {
+            const ang = u.anim * 2.0 + (i * Math.PI * 2 / 6);
+            const lx = sx + Math.cos(ang) * (uw * 0.38);
+            const ly = sy + (uh * 0.22) + Math.sin(ang) * (uh * 0.1);
+            ctx.fillStyle = i % 2 === 0 ? '#d500f9' : '#00e5ff';
+            ctx.beginPath();
+            ctx.arc(lx, ly, 2.5 * sc, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
+
+    // 8. Player Ship (True 3D Polyhedral)
+    if (health > 0) {
+        if (!(invulnerableTimer > 0 && Math.floor(invulnerableTimer * 20) % 2 === 0)) {
+            const sc = Camera3D.getScale(playerZ);
+            const sx = Camera3D.projectX(playerX, playerZ);
+            const sy = Camera3D.projectY(playerY, playerZ);
+
+            // Floor Shadow
+            const shX = Camera3D.projectX(playerX, playerZ);
+            const shY = Camera3D.projectY(floorY, playerZ);
+            ctx.fillStyle = 'rgba(0,0,0,0.65)';
+            ctx.beginPath();
+            ctx.ellipse(shX, shY, 75 * sc * 0.5, 20 * sc * 0.5, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Render 3D Model
+            const yaw = -playerRoll * 0.35;
+            render3DShip(ctx, sx, sy, sc, playerRoll, playerPitch, yaw, engineAnim, SHIP_TYPES[selectedShipIdx].color, true);
+
+            // Shield bubble
+            if (selectedDrone === "SHIELD" || invulnerableTimer > 0) {
+                ctx.strokeStyle = 'rgba(0, 229, 255, 0.6)';
+                ctx.lineWidth = 2.5 * sc;
+                ctx.beginPath();
+                ctx.ellipse(sx, sy, 70 * sc, 45 * sc, 0, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+        }
+    }
+
+    // 9. Particles
+    for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.life -= 0.016;
+        if (p.life <= 0) { particles.splice(i, 1); continue; }
+        const psx = Camera3D.projectX(p.x, p.z);
+        const psy = Camera3D.projectY(p.y, p.z);
+        const psc = Camera3D.getScale(p.z);
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(psx, psy, p.size * psc, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    // 10. Floating Texts
+    for (let ft of floatingTexts) {
+        ctx.fillStyle = ft.color;
+        ctx.font = 'bold 18px Segoe UI';
+        ctx.fillText(ft.text, ft.x, ft.y);
+    }
+
+    // 11. Cockpit HUD Overlay
+    renderCockpitHUD();
+}
+
+function renderCockpitHUD() {
+    const curSec = SECTORS[currentSectorIdx];
+
+    // Cockpit corner brackets
+    ctx.strokeStyle = 'rgba(0, 229, 255, 0.35)';
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    ctx.moveTo(20, 55); ctx.lineTo(20, 20); ctx.lineTo(55, 20);
+    ctx.moveTo(WIDTH - 55, 20); ctx.lineTo(WIDTH - 20, 20); ctx.lineTo(WIDTH - 20, 55);
+    ctx.moveTo(20, HEIGHT - 55); ctx.lineTo(20, HEIGHT - 20); ctx.lineTo(55, HEIGHT - 20);
+    ctx.moveTo(WIDTH - 55, HEIGHT - 20); ctx.lineTo(WIDTH - 20, HEIGHT - 20); ctx.lineTo(WIDTH - 20, HEIGHT - 55);
+    ctx.stroke();
+
+    // Glassmorphic Top Bar
+    const barX = 22, barY = 12, barW = WIDTH - 44, barH = 58;
+    ctx.fillStyle = 'rgba(2, 7, 20, 0.92)';
+    ctx.beginPath();
+    ctx.roundRect(barX, barY, barW, barH, 18);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(0, 229, 255, 0.65)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // Module Left: Pilot
+    ctx.fillStyle = '#00e676';
+    ctx.beginPath();
+    ctx.arc(42, 32, 4, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#90caf9';
+    ctx.font = 'bold 12px Segoe UI';
+    ctx.fillText(`PILOT // ${currentPilot.toUpperCase()}`, 54, 35);
+
+    ctx.fillStyle = '#ffd600';
+    ctx.font = 'bold 13px Segoe UI';
+    ctx.fillText(`${curSec.name} [${currentSectorIdx + 1}/5]`, 42, 54);
+
+    // Separators
+    ctx.strokeStyle = 'rgba(0, 229, 255, 0.25)';
+    ctx.beginPath();
+    ctx.moveTo(260, 20); ctx.lineTo(260, 62);
+    ctx.moveTo(715, 20); ctx.lineTo(715, 62);
+    ctx.stroke();
+
+    // Module Center: Gallon & Warp Target
+    ctx.fillStyle = '#0288d1';
+    ctx.beginPath();
+    ctx.roundRect(280, 23, 20, 24, 6);
+    ctx.fill();
+    ctx.fillStyle = '#4fc3f7';
+    ctx.fillRect(282, 28, 16, 17);
+    ctx.fillStyle = '#ff1744';
+    ctx.fillRect(285, 19, 10, 6);
+
+    ctx.fillStyle = '#00e5ff';
+    ctx.font = '900 22px Segoe UI';
+    ctx.fillText(`TOTAL GALON: ${totalGalons}`, 316, 44);
+
+    // Warp progress bar
+    const progW = 160, progH = 8, progX = 530, progY = 38;
+    const ratio = Math.min(1.0, levelGalons / curSec.target);
+    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    ctx.beginPath();
+    ctx.roundRect(progX, progY, progW, progH, 4);
+    ctx.fill();
+    ctx.fillStyle = '#00e676';
+    ctx.beginPath();
+    ctx.roundRect(progX, progY, progW * ratio, progH, 4);
+    ctx.fill();
+
+    ctx.fillStyle = '#b0bec5';
+    ctx.font = 'bold 10px Segoe UI';
+    ctx.fillText(`WARP TARGET: ${levelGalons}/${curSec.target} (${Math.floor(ratio*100)}%)`, progX, progY - 4);
+
+    // Module Right: Shield Cells & Throttle
+    ctx.fillStyle = health === 1 ? '#ff1744' : '#90caf9';
+    ctx.font = 'bold 11px Segoe UI';
+    ctx.fillText('SHIELD CELLS:', 732, 33);
+
+    for (let i = 0; i < 3; i++) {
+        const cX = 732 + i * 26;
+        const cY = 39, cW = 20, cH = 18;
+        if (i < health) {
+            ctx.fillStyle = '#00e5ff';
+            ctx.beginPath();
+            ctx.roundRect(cX, cY, cW, cH, 6);
+            ctx.fill();
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 1.2;
+            ctx.stroke();
+        } else {
+            ctx.fillStyle = 'rgba(40, 40, 50, 0.6)';
+            ctx.beginPath();
+            ctx.roundRect(cX, cY, cW, cH, 6);
+            ctx.fill();
+            ctx.strokeStyle = '#ff1744';
+            ctx.lineWidth = 1.2;
+            ctx.stroke();
+        }
+    }
+
+    ctx.font = 'bold 11px Segoe UI';
+    if (keys.w) {
+        ctx.fillStyle = '#00e676';
+        ctx.fillText('[W] BOOST 110% ▲', 830, 44);
+    } else if (keys.s) {
+        ctx.fillStyle = '#ff9100';
+        ctx.fillText('[S] BRAKE 85% ▼', 830, 44);
+    } else {
+        ctx.fillStyle = '#80d8ff';
+        ctx.fillText('[CRUISE] 100% ▶', 830, 44);
+    }
+
+    // Low integrity alarm
+    if (health === 1) {
+        const pulse = (Math.sin(performance.now() * 0.008) + 1.0) / 2.0;
+        ctx.fillStyle = `rgba(255, 23, 68, ${0.12 * pulse})`;
+        ctx.fillRect(0, 0, WIDTH, HEIGHT);
+        ctx.fillStyle = `rgba(255, 82, 82, ${0.8 + pulse * 0.2})`;
+        ctx.font = '900 14px Segoe UI';
+        ctx.fillText("⚠️ PERINGATAN: INTEGRITAS PERISAI KRITIS (1/3) ⚠️", WIDTH / 2 - 180, HEIGHT - 30);
+    }
+}
+
+function renderHangarTurntable(ctx, ship, angle) {
+    const cx = 170, cy = 180, platW = 200, platH = 46;
+
+    // Platform ring
+    ctx.strokeStyle = 'rgba(0, 229, 255, 0.7)';
+    ctx.lineWidth = 1.8;
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, platW/2, platH/2, 0, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Beam upward
+    const bGrad = ctx.createLinearGradient(0, cy, 0, 30);
+    bGrad.addColorStop(0, 'rgba(0, 229, 255, 0.25)');
+    bGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    ctx.fillStyle = bGrad;
+    ctx.beginPath();
+    ctx.moveTo(cx - platW/2, cy);
+    ctx.lineTo(cx + platW/2, cy);
+    ctx.lineTo(cx + 55, 30);
+    ctx.lineTo(cx - 55, 30);
+    ctx.closePath();
+    ctx.fill();
+
+    // Scanline
+    const scanY = 55 + ((Math.sin(angle * 1.8) + 1.0) / 2.0) * 105;
+    ctx.strokeStyle = 'rgba(0, 229, 255, 0.5)';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(cx - 75, scanY);
+    ctx.lineTo(cx + 75, scanY);
+    ctx.stroke();
+
+    // 3D Ship turntable
+    render3DShip(ctx, cx, 115 + Math.sin(angle * 2.0) * 6.0, 1.35, Math.sin(angle * 0.7) * 0.12, -0.22, angle, angle, ship.color, false);
+
+    ctx.fillStyle = 'rgba(0, 229, 255, 0.85)';
+    ctx.font = 'bold 10px Segoe UI';
+    ctx.fillText("HULL: 100% // WARP CORE: ONLINE", cx - 85, cy + 32);
+}
+
+// --- 9. UI INTERACTION LISTENERS ---
+function updateShipDisplay() {
+    const ship = SHIP_TYPES[selectedShipIdx];
+    document.getElementById('ship-name').innerText = ship.name;
+    document.getElementById('ship-name').style.color = ship.color;
+    document.getElementById('ship-desc').innerText = ship.desc;
+    document.getElementById('speed-bar').style.width = `${(ship.speed / 10) * 100}%`;
+    document.getElementById('speed-val').innerText = `${Math.floor(ship.speed * 10)}%`;
+    document.getElementById('handle-bar').style.width = `${(ship.handling / 0.22) * 100}%`;
+    document.getElementById('handle-val').innerText = `${Math.floor((ship.handling / 0.22) * 100)}%`;
+    document.getElementById('magnet-bar').style.width = `${(ship.magnet / 250) * 100}%`;
+    document.getElementById('magnet-val').innerText = `${Math.floor((ship.magnet / 250) * 100)}%`;
+}
+
+document.getElementById('prev-ship-btn').addEventListener('click', () => {
+    selectedShipIdx = (selectedShipIdx - 1 + SHIP_TYPES.length) % SHIP_TYPES.length;
+    updateShipDisplay();
+    playClickSound();
+});
+
+document.getElementById('next-ship-btn').addEventListener('click', () => {
+    selectedShipIdx = (selectedShipIdx + 1) % SHIP_TYPES.length;
+    updateShipDisplay();
+    playClickSound();
+});
+
+// Drone cards selection
+document.querySelectorAll('.drone-card').forEach(card => {
+    card.addEventListener('click', () => {
+        document.querySelectorAll('.drone-card').forEach(c => c.classList.remove('selected'));
+        card.classList.add('selected');
+        selectedDrone = card.getAttribute('data-drone');
+        playClickSound();
+    });
+});
+
+// Launch Button
+document.getElementById('btn-launch-game').addEventListener('click', () => {
+    initAudio();
+    const pInput = document.getElementById('pilot-name').value.trim();
+    if (pInput) currentPilot = pInput;
+
+    document.getElementById('hangar-overlay').classList.add('hidden');
+    startNewGame();
+    playWarpSound();
+});
+
+// Restart & Hangar Buttons
+document.getElementById('btn-restart').addEventListener('click', () => {
+    document.getElementById('gameover-overlay').classList.add('hidden');
+    startNewGame();
+});
+
+document.getElementById('btn-to-hangar').addEventListener('click', () => {
+    document.getElementById('gameover-overlay').classList.add('hidden');
+    document.getElementById('hangar-overlay').classList.remove('hidden');
+});
+
+// Leaderboard Buttons
+document.getElementById('btn-open-leaderboard').addEventListener('click', () => {
+    playClickSound();
+    showLeaderboardUI();
+});
+document.getElementById('btn-close-leaderboard').addEventListener('click', () => {
+    playClickSound();
+    document.getElementById('leaderboard-overlay').classList.add('hidden');
+});
+
+// Guide Button
+document.getElementById('btn-open-guide').addEventListener('click', () => {
+    alert(
+        "★ PANDUAN MISI STAR INVADER 3D ★\n\n" +
+        "1. KONTROL 3D ALAMI:\n" +
+        "   - [W] / [▲]: MAJU KE DEPAN (Akselerasi)\n" +
+        "   - [S] / [▼]: MUNDUR / REM (Melambat)\n" +
+        "   - [A] / [◀]: BELOK KIRI (Banking Roll)\n" +
+        "   - [D] / [▶]: BELOK KANAN (Banking Roll)\n" +
+        "   - [SPACE] / [Tombol Merah]: TEMBAK LASER DUAL\n" +
+        "   - [ESC]: Jeda Permainan (Pause)\n" +
+        "   - [M]: Toggle Musik & Suara\n\n" +
+        "2. ATURAN SKOR:\n" +
+        "   - Fokus utama adalah mengumpulkan Galon Air Kosmik 💧.\n" +
+        "   - UFO bebas ditembak atau dihindari (tidak ada penalti jika UFO lewat).\n" +
+        "   - Jika menabrak UFO, nyawa berkurang 1. Setelah 3 kali tabrakan, Misi Selesai!"
+    );
+});
+
+// Audio Toggle Button
+document.getElementById('btn-toggle-audio').addEventListener('click', () => {
+    initAudio();
+    musicEnabled = !musicEnabled;
+    document.getElementById('btn-toggle-audio').innerText = `🎵 AUDIO: ${musicEnabled ? 'ON' : 'OFF'}`;
+});
+
+function startNewGame() {
+    currentSectorIdx = 0;
+    totalGalons = 0;
+    levelGalons = 0;
+    score = 0;
+    health = 3;
+    invulnerableTimer = 0;
+    playerX = 0; playerY = 75; playerZ = 120;
+    lasers.length = 0;
+    galons.length = 0;
+    ufos.length = 0;
+    particles.length = 0;
+    floatingTexts.length = 0;
+    gameRunning = true;
+    isPaused = false;
+    inWarp = false;
+}
+
+// Start animation loop
+requestAnimationFrame(gameLoop);
+updateShipDisplay();
+</script>
+</body>
+</html>
