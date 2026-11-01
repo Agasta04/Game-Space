@@ -14,6 +14,9 @@ import javafx.scene.image.Image;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
+import javafx.scene.paint.LinearGradient;
+import javafx.scene.paint.CycleMethod;
+import javafx.scene.paint.Stop;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.scene.text.Text;
@@ -23,13 +26,12 @@ import javafx.stage.Stage;
 import java.util.*;
 
 /**
- * Game Space Shooter Modern (UFO vs Rocket - Galon Collector).
- * Fokus Misi: Mengumpulkan Galon Kosmik sebanyak-banyaknya.
- * Pemain bebas menghancurkan atau menghindari UFO alien tanpa penalti jika UFO lolos.
+ * Game Space Invader 3D Profesional: Misi Pemburu UFO & Galon Kosmik.
+ * Menggunakan Full 3D Chase Camera Perspective, Sistem Hangar Pemilihan Pesawat,
+ * 5 Sektor Level Progresif dengan Hyperspace Warp Jump, dan Desain UI/UX Kelas Dunia.
  */
 public class SpaceShooter extends Application {
 
-    // Resolusi Widescreen untuk Laptop & Tablet
     public static final int WIDTH = 1050;
     public static final int HEIGHT = 700;
 
@@ -39,24 +41,38 @@ public class SpaceShooter extends Application {
     private Canvas canvas;
     private GraphicsContext gc;
 
-    // Entitas Game
-    private final List<GameObject> gameObjects = new ArrayList<>();
-    private final List<GameObject> newObjects = new ArrayList<>();
+    // Sistem 3D & Kamera
+    private Camera3D camera = new Camera3D();
+    private SpaceBackground3D spaceBackground = new SpaceBackground3D();
+    private LevelManager levelManager = new LevelManager();
+
+    // Pemilihan Pesawat & Drone di Hangar
+    private ShipType selectedShip = ShipType.FALCON_X1;
+    private DroneType selectedDrone = DroneType.MAGNET_DRONE;
+    private int selectedShipIndex = 0;
+    private double hangarRotAngle = 0.0;
+
+    // Entitas Dunia 3D
+    private PlayerShip3D player;
+    private final List<Entity3D> worldEntities = new ArrayList<>();
+    private final List<Entity3D> newEntities = new ArrayList<>();
+    private final List<Laser3D> lasers = new ArrayList<>();
+    private final List<EnemyPlasma3D> enemyPlasmas = new ArrayList<>();
     private final List<Particle> particles = new ArrayList<>();
     private final List<FloatingText> floatingTexts = new ArrayList<>();
-    private Player player;
-    private SpaceBackground spaceBackground;
 
     // Leaderboard
     private final LeaderboardManager leaderboardManager = new LeaderboardManager();
-    private String currentPlayerName = "Astronaut";
+    private String currentPlayerName = "Astronaut-1";
 
     // Game State
+    private int totalGalonCount = 0;
+    private int levelGalonCount = 0;
     private int score = 0;
-    private int galonCount = 0;
     private boolean gameRunning = false;
     private boolean isPaused = false;
-    private boolean bossExists = false;
+    private boolean inLevelTransition = false;
+    private double warpTimer = 0.0;
     private final Random random = new Random();
 
     // Game Loop
@@ -69,45 +85,38 @@ public class SpaceShooter extends Application {
     @Override
     public void start(Stage stage) {
         this.primaryStage = stage;
-        stage.setTitle("Space Shooter 3D - Misi Pemburu Galon Kosmik");
+        stage.setTitle("Space Invader 3D - Ultimate Cosmic Mission");
         stage.setResizable(false);
 
         try {
             stage.getIcons().add(new Image(Objects.requireNonNull(getClass().getResourceAsStream("/player.png"))));
         } catch (Exception ignored) {}
 
-        spaceBackground = new SpaceBackground(WIDTH, HEIGHT);
         initGameScene();
-
-        // Mulai pemutaran musik latar retro synthwave
         SoundManager.startBGM();
 
-        // Tampilkan Menu Utama di awal
-        showMainMenu();
+        // Tampilkan Menu Hangar 3D Utama
+        showHangarMenu();
         stage.show();
     }
 
-    /**
-     * Inisialisasi Canvas dan Event Handler permainan.
-     */
     private void initGameScene() {
         gameRoot = new Pane();
         canvas = new Canvas(WIDTH, HEIGHT);
         gc = canvas.getGraphicsContext2D();
-
         gameRoot.getChildren().add(canvas);
+
         gameScene = new Scene(gameRoot, WIDTH, HEIGHT, Color.BLACK);
 
-        // Key Listeners
         gameScene.setOnKeyPressed(event -> {
             if (player == null) return;
             KeyCode code = event.getCode();
             if (code == KeyCode.A || code == KeyCode.LEFT) player.setMoveLeft(true);
             if (code == KeyCode.D || code == KeyCode.RIGHT) player.setMoveRight(true);
-            if (code == KeyCode.W || code == KeyCode.UP) player.setMoveForward(true);
-            if (code == KeyCode.S || code == KeyCode.DOWN) player.setMoveBackward(true);
-            if (code == KeyCode.SPACE && gameRunning && !isPaused) {
-                player.shoot(newObjects);
+            if (code == KeyCode.W || code == KeyCode.UP) player.setMoveUp(true);
+            if (code == KeyCode.S || code == KeyCode.DOWN) player.setMoveDown(true);
+            if (code == KeyCode.SPACE && gameRunning && !isPaused && !inLevelTransition) {
+                player.shoot(lasers);
             }
             if (code == KeyCode.M) {
                 SoundManager.toggleMusic();
@@ -122,14 +131,14 @@ public class SpaceShooter extends Application {
             KeyCode code = event.getCode();
             if (code == KeyCode.A || code == KeyCode.LEFT) player.setMoveLeft(false);
             if (code == KeyCode.D || code == KeyCode.RIGHT) player.setMoveRight(false);
-            if (code == KeyCode.W || code == KeyCode.UP) player.setMoveForward(false);
-            if (code == KeyCode.S || code == KeyCode.DOWN) player.setMoveBackward(false);
+            if (code == KeyCode.W || code == KeyCode.UP) player.setMoveUp(false);
+            if (code == KeyCode.S || code == KeyCode.DOWN) player.setMoveDown(false);
         });
 
-        // Game Loop
         gameLoop = new AnimationTimer() {
             private long lastEnemySpawn = 0;
             private long lastGalonSpawn = 0;
+            private long lastAsteroidSpawn = 0;
 
             @Override
             public void handle(long now) {
@@ -140,39 +149,66 @@ public class SpaceShooter extends Application {
                     return;
                 }
 
-                // Update Background & Camera Shake
+                // Update Background & Kamera
+                camera.update(player != null ? player.getX() : 0, player != null ? player.getY() : 0);
                 spaceBackground.update();
 
-                // Spawn Musuh UFO (Musuh untuk dihindari atau ditembak jika menghalangi)
-                if (now - lastEnemySpawn > 1_200_000_000L) {
-                    spawnEnemyUfo();
-                    lastEnemySpawn = now;
+                // Transisi Warp Speed Naik Level
+                if (inLevelTransition) {
+                    warpTimer -= 0.016;
+                    if (warpTimer <= 0) {
+                        inLevelTransition = false;
+                        spaceBackground.stopWarpJump();
+                    }
                 }
 
-                // Spawn Galon Kosmik lebih sering agar banyak galon untuk dikumpulkan!
-                if (now - lastGalonSpawn > 1_600_000_000L) {
-                    spawnGalon();
-                    lastGalonSpawn = now;
+                LevelData currentLevel = levelManager.getCurrentLevelData();
+
+                // Spawning Objek 3D dari Horizon (hanya jika tidak dalam transisi warp)
+                if (!inLevelTransition) {
+                    // Spawn UFO Musuh
+                    long enemyInterval = (long) (currentLevel.getEnemySpawnInterval() * 1_000_000_000L);
+                    if (now - lastEnemySpawn > enemyInterval) {
+                        spawnUfo3D(currentLevel.getEnemySpeed());
+                        lastEnemySpawn = now;
+                    }
+
+                    // Spawn Galon Kosmik 3D (Banyak galon untuk dikumpulkan)
+                    if (now - lastGalonSpawn > 1_500_000_000L) {
+                        spawnGalon3D();
+                        lastGalonSpawn = now;
+                    }
+
+                    // Spawn Asteroid jika level mengizinkan
+                    if (currentLevel.isSpawnAsteroids() && now - lastAsteroidSpawn > 2_400_000_000L) {
+                        spawnAsteroid3D();
+                        lastAsteroidSpawn = now;
+                    }
+
+                    // Final Boss di Level 5
+                    if (currentLevel.isBossLevel() && worldEntities.stream().noneMatch(e -> e instanceof BossMothership3D)) {
+                        BossMothership3D boss = new BossMothership3D(0, -60, 950);
+                        worldEntities.add(boss);
+                        SoundManager.playBossAlert();
+                        spaceBackground.triggerScreenShake(18.0);
+                        floatingTexts.add(new FloatingText("⚠️ PERINGATAN: FINAL BOSS ALIEN MOTHERSHIP!", WIDTH / 2.0 - 250, HEIGHT / 2.0 - 60, Color.web("#ff1744"), 24, 3.5));
+                    }
                 }
 
-                // Kemunculan Boss UFO Mothership setiap 15 galon
-                if (galonCount >= 15 && !bossExists && (galonCount % 15 == 0)) {
-                    spawnBossMothership();
-                }
-
-                // Update & Render
+                // Render Canvas
                 gc.save();
-                // Terapkan efek getaran layar (Screen Shake)
                 gc.translate(spaceBackground.getShakeX(), spaceBackground.getShakeY());
 
-                spaceBackground.render(gc);
+                // 1. Render Background Luar Angkasa 3D
+                spaceBackground.render(gc, camera);
 
-                // Partikel roket
+                // 2. Partikel Mesin Pemain
                 if (player != null && !player.isDead()) {
-                    player.emitThrusterParticles(particles);
+                    player.update();
+                    player.emitThrusterParticles(particles, camera);
                 }
 
-                // Update Partikel
+                // 3. Update Partikel
                 Iterator<Particle> pIt = particles.iterator();
                 while (pIt.hasNext()) {
                     Particle p = pIt.next();
@@ -181,35 +217,53 @@ public class SpaceShooter extends Application {
                     if (p.isDead()) pIt.remove();
                 }
 
-                // Update & Render GameObjects
-                checkCollisions();
-                checkEnemiesBottom();
+                // 4. Update Lasers
+                Iterator<Laser3D> lIt = lasers.iterator();
+                while (lIt.hasNext()) {
+                    Laser3D laser = lIt.next();
+                    laser.update();
+                    laser.render(gc, camera);
+                    if (laser.isDead()) lIt.remove();
+                }
 
-                gameObjects.addAll(newObjects);
-                newObjects.clear();
+                // 5. Update Enemy Plasmas
+                Iterator<EnemyPlasma3D> epIt = enemyPlasmas.iterator();
+                while (epIt.hasNext()) {
+                    EnemyPlasma3D plasma = epIt.next();
+                    plasma.update();
+                    plasma.render(gc, camera);
+                    if (plasma.isDead()) epIt.remove();
+                }
 
-                for (GameObject obj : gameObjects) {
-                    obj.update();
-                    obj.render(gc);
+                // 6. Collision & Magnet Attraction
+                handlePhysicsAndCollisions();
 
-                    if (obj instanceof BossEnemy) {
-                        ((BossEnemy) obj).shoot(newObjects);
+                // 7. Z-Ordering / Painter's Algorithm untuk Objek 3D
+                worldEntities.addAll(newEntities);
+                newEntities.clear();
+
+                // Masukkan player ke daftar render untuk di-sort kedalamannya secara alami
+                List<Entity3D> renderList = new ArrayList<>(worldEntities);
+                if (player != null && !player.isDead()) {
+                    renderList.add(player);
+                }
+                Collections.sort(renderList); // Mengurutkan Z dari yang paling jauh ke yang paling dekat
+
+                for (Entity3D entity : renderList) {
+                    if (entity != player) {
+                        entity.update();
+                    }
+                    entity.render(gc, camera);
+
+                    if (entity instanceof BossMothership3D) {
+                        ((BossMothership3D) entity).shoot(enemyPlasmas);
                     }
                 }
 
-                // Hapus objek mati
-                Iterator<GameObject> objIt = gameObjects.iterator();
-                while (objIt.hasNext()) {
-                    GameObject obj = objIt.next();
-                    if (obj.isDead()) {
-                        if (obj instanceof BossEnemy) {
-                            bossExists = false;
-                        }
-                        objIt.remove();
-                    }
-                }
+                // Hapus entitas mati
+                worldEntities.removeIf(Entity3D::isDead);
 
-                // Update & Render Floating Texts
+                // 8. Update & Render Floating Texts
                 Iterator<FloatingText> tIt = floatingTexts.iterator();
                 while (tIt.hasNext()) {
                     FloatingText ft = tIt.next();
@@ -220,8 +274,11 @@ public class SpaceShooter extends Application {
 
                 gc.restore();
 
-                // Render HUD Sci-Fi di atas layar
-                renderHUD();
+                // 9. Render HUD Sci-Fi Profesional
+                renderProfessionalHUD();
+
+                // Cek Naik Level
+                checkLevelProgress();
 
                 // Cek Game Over
                 if (player != null && player.isDead()) {
@@ -232,36 +289,78 @@ public class SpaceShooter extends Application {
     }
 
     /**
-     * Tampilan Layar Utama (Main Menu) dengan input nama pemain.
+     * Tampilan Menu Hangar 3D Interaktif untuk memilih pesawat, drone, dan input nama.
      */
-    private void showMainMenu() {
+    private void showHangarMenu() {
         gameRunning = false;
 
-        VBox rootBox = new VBox(20);
+        VBox rootBox = new VBox(14);
         rootBox.setAlignment(Pos.CENTER);
-        rootBox.setStyle("-fx-background-color: linear-gradient(to bottom, #050b18, #0b1a3a, #15092a);");
+        rootBox.setStyle("-fx-background-color: linear-gradient(to bottom, #040814, #08142c, #110524);");
+        rootBox.setPadding(new Insets(16));
 
-        // Judul Utama dengan efek Glow Kosmik
+        // Header Title
         Text titleText = new Text("SPACE INVADER 3D");
-        titleText.setFont(Font.font("Segoe UI", FontWeight.EXTRA_BOLD, 48));
+        titleText.setFont(Font.font("Segoe UI", FontWeight.EXTRA_BOLD, 44));
         titleText.setFill(Color.web("#00e5ff"));
-        titleText.setEffect(new DropShadow(20, Color.web("#00b0ff")));
+        titleText.setEffect(new DropShadow(22, Color.web("#00b0ff")));
 
-        Text subtitleText = new Text("💧 MISI UTAMA: PENGUMPUL GALON KOSMIK 💧");
-        subtitleText.setFont(Font.font("Segoe UI", FontWeight.BOLD, 18));
-        subtitleText.setFill(Color.web("#ffea00"));
-        subtitleText.setEffect(new DropShadow(10, Color.web("#ff9100")));
+        Text subText = new Text("HANGAR PEMILIHAN PESAWAT & PERSIAPAN MISI");
+        subText.setFont(Font.font("Segoe UI", FontWeight.BOLD, 15));
+        subText.setFill(Color.web("#ffd600"));
 
-        Text hintText = new Text("💡 Anda boleh menghabisi atau menghindari UFO. Poin utama adalah Galon!");
-        hintText.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 14));
-        hintText.setFill(Color.web("#80d8ff"));
+        // Panel Hangar Utama (Kiri: Preview Pesawat 3D, Kanan: Info & Opsi)
+        HBox mainHangarBox = new HBox(24);
+        mainHangarBox.setAlignment(Pos.CENTER);
+        mainHangarBox.setMaxWidth(880);
 
-        // Box Input Nama Pemain
-        VBox inputContainer = new VBox(8);
-        inputContainer.setAlignment(Pos.CENTER);
-        inputContainer.setMaxWidth(380);
-        inputContainer.setStyle(
-                "-fx-background-color: rgba(16, 32, 64, 0.7);"
+        // Preview Canvas Pesawat 3D di Hangar
+        Canvas previewCanvas = new Canvas(340, 240);
+        GraphicsContext pgc = previewCanvas.getGraphicsContext2D();
+
+        AnimationTimer turntableTimer = new AnimationTimer() {
+            @Override
+            public void handle(long now) {
+                hangarRotAngle += 0.025;
+                renderHangarShipPreview(pgc, selectedShip, hangarRotAngle);
+            }
+        };
+        turntableTimer.start();
+
+        VBox leftBox = new VBox(8);
+        leftBox.setAlignment(Pos.CENTER);
+        leftBox.setStyle(
+                "-fx-background-color: rgba(10, 25, 55, 0.75);"
+                + "-fx-padding: 14;"
+                + "-fx-background-radius: 14;"
+                + "-fx-border-color: #00e5ff;"
+                + "-fx-border-width: 1.5;"
+                + "-fx-border-radius: 14;"
+        );
+
+        Label previewTitle = new Label("3D SHIP HOLOGRAM");
+        previewTitle.setFont(Font.font("Segoe UI", FontWeight.BOLD, 13));
+        previewTitle.setTextFill(Color.web("#80d8ff"));
+
+        // Tombol Ganti Pesawat < dan >
+        HBox shipSelectorBox = new HBox(12);
+        shipSelectorBox.setAlignment(Pos.CENTER);
+
+        Button prevBtn = createMiniButton("◀");
+        Button nextBtn = createMiniButton("▶");
+
+        Label shipNameLabel = new Label(selectedShip.getName());
+        shipNameLabel.setFont(Font.font("Segoe UI", FontWeight.EXTRA_BOLD, 18));
+        shipNameLabel.setTextFill(selectedShip.getPrimaryColor());
+        shipNameLabel.setPrefWidth(170);
+        shipNameLabel.setAlignment(Pos.CENTER);
+
+        // Right Info Box
+        VBox rightBox = new VBox(10);
+        rightBox.setAlignment(Pos.CENTER_LEFT);
+        rightBox.setPrefWidth(420);
+        rightBox.setStyle(
+                "-fx-background-color: rgba(10, 25, 55, 0.75);"
                 + "-fx-padding: 16;"
                 + "-fx-background-radius: 14;"
                 + "-fx-border-color: #00e5ff;"
@@ -269,297 +368,496 @@ public class SpaceShooter extends Application {
                 + "-fx-border-radius: 14;"
         );
 
-        Label nameLabel = new Label("NAMA PILOT ASTRONOT:");
-        nameLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 14));
-        nameLabel.setTextFill(Color.web("#b0bec5"));
+        Label descLabel = new Label(selectedShip.getDescription());
+        descLabel.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 13));
+        descLabel.setTextFill(Color.web("#cfd8dc"));
+        descLabel.setWrapText(true);
 
-        TextField nameInput = new TextField(currentPlayerName);
-        nameInput.setMaxWidth(320);
-        nameInput.setAlignment(Pos.CENTER);
-        nameInput.setFont(Font.font("Segoe UI", FontWeight.BOLD, 16));
-        nameInput.setStyle(
-                "-fx-background-color: #0a192f;"
-                + "-fx-text-fill: #ffffff;"
-                + "-fx-border-color: #29b6f6;"
-                + "-fx-border-radius: 8;"
-                + "-fx-background-radius: 8;"
-                + "-fx-padding: 8;"
+        // Bar Statistik Pesawat
+        ProgressBar speedBar = createStatBar(selectedShip.getSpeed() / 10.0, "#00e5ff");
+        ProgressBar handleBar = createStatBar(selectedShip.getHandling() / 0.22, "#ffea00");
+        ProgressBar magnetBar = createStatBar(selectedShip.getMagnetRange() / 250.0, "#d500f9");
+
+        VBox statsBox = new VBox(6);
+        statsBox.getChildren().addAll(
+                createStatRow("KECEPATAN (SPEED)", speedBar),
+                createStatRow("MANUVER (HANDLING)", handleBar),
+                createStatRow("MAGNET GALON", magnetBar)
         );
 
-        inputContainer.getChildren().addAll(nameLabel, nameInput);
+        // Pilihan Drone Pendukung
+        Label droneLabel = new Label("PILIH DRONE PENDUKUNG:");
+        droneLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 13));
+        droneLabel.setTextFill(Color.web("#80d8ff"));
 
-        // Tombol-tombol Menu
-        Button startBtn = createSciFiButton("🚀 MULAI MISI", "#00e676", "#00c853");
-        startBtn.setOnAction(e -> {
-            String enteredName = nameInput.getText().trim();
-            if (!enteredName.isEmpty()) {
-                currentPlayerName = enteredName;
-            }
+        HBox droneChoices = new HBox(8);
+        ToggleGroup droneGroup = new ToggleGroup();
+
+        for (DroneType dt : DroneType.values()) {
+            RadioButton rb = new RadioButton(dt.getTitle());
+            rb.setToggleGroup(droneGroup);
+            rb.setFont(Font.font("Segoe UI", FontWeight.BOLD, 11));
+            rb.setTextFill(Color.WHITE);
+            if (dt == selectedDrone) rb.setSelected(true);
+            rb.setOnAction(e -> {
+                selectedDrone = dt;
+                SoundManager.playClick();
+            });
+            droneChoices.getChildren().add(rb);
+        }
+
+        // Listener Tombol Ganti Pesawat
+        prevBtn.setOnAction(e -> {
+            ShipType[] types = ShipType.values();
+            selectedShipIndex = (selectedShipIndex - 1 + types.length) % types.length;
+            selectedShip = types[selectedShipIndex];
+            shipNameLabel.setText(selectedShip.getName());
+            shipNameLabel.setTextFill(selectedShip.getPrimaryColor());
+            descLabel.setText(selectedShip.getDescription());
+            speedBar.setProgress(selectedShip.getSpeed() / 10.0);
+            handleBar.setProgress(selectedShip.getHandling() / 0.22);
+            magnetBar.setProgress(selectedShip.getMagnetRange() / 250.0);
+            SoundManager.playClick();
+        });
+
+        nextBtn.setOnAction(e -> {
+            ShipType[] types = ShipType.values();
+            selectedShipIndex = (selectedShipIndex + 1) % types.length;
+            selectedShip = types[selectedShipIndex];
+            shipNameLabel.setText(selectedShip.getName());
+            shipNameLabel.setTextFill(selectedShip.getPrimaryColor());
+            descLabel.setText(selectedShip.getDescription());
+            speedBar.setProgress(selectedShip.getSpeed() / 10.0);
+            handleBar.setProgress(selectedShip.getHandling() / 0.22);
+            magnetBar.setProgress(selectedShip.getMagnetRange() / 250.0);
+            SoundManager.playClick();
+        });
+
+        shipSelectorBox.getChildren().addAll(prevBtn, shipNameLabel, nextBtn);
+        leftBox.getChildren().addAll(previewTitle, previewCanvas, shipSelectorBox);
+
+        // Input Nama Pemain
+        HBox nameBox = new HBox(10);
+        nameBox.setAlignment(Pos.CENTER_LEFT);
+        Label pNameLbl = new Label("PILOT:");
+        pNameLbl.setFont(Font.font("Segoe UI", FontWeight.BOLD, 13));
+        pNameLbl.setTextFill(Color.web("#80d8ff"));
+
+        TextField nameInput = new TextField(currentPlayerName);
+        nameInput.setPrefWidth(260);
+        nameInput.setFont(Font.font("Segoe UI", FontWeight.BOLD, 14));
+        nameInput.setStyle("-fx-background-color: #0b1d3a; -fx-text-fill: white; -fx-border-color: #00e5ff; -fx-border-radius: 6;");
+
+        nameBox.getChildren().addAll(pNameLbl, nameInput);
+
+        rightBox.getChildren().addAll(nameBox, descLabel, statsBox, droneLabel, droneChoices);
+        mainHangarBox.getChildren().addAll(leftBox, rightBox);
+
+        // Tombol Aksi Bawah
+        HBox buttonsBox = new HBox(14);
+        buttonsBox.setAlignment(Pos.CENTER);
+
+        Button launchBtn = createSciFiButton("🚀 LUNCURKAN MISI", "#00e676", "#00c853", 260);
+        launchBtn.setOnAction(e -> {
+            turntableTimer.stop();
+            String entered = nameInput.getText().trim();
+            if (!entered.isEmpty()) currentPlayerName = entered;
+            SoundManager.playWarp();
             startNewGame();
         });
 
-        Button leaderboardBtn = createSciFiButton("🏆 PAPAN SKOR (LEADERBOARD)", "#2979ff", "#1565c0");
-        leaderboardBtn.setOnAction(e -> showLeaderboardScreen());
+        Button leaderboardBtn = createSciFiButton("🏆 LEADERBOARD", "#2979ff", "#1565c0", 200);
+        leaderboardBtn.setOnAction(e -> {
+            turntableTimer.stop();
+            showLeaderboardScreen();
+        });
 
-        Button instructionsBtn = createSciFiButton("📜 PETUNJUK & KONTROL", "#ab47bc", "#7b1fa2");
+        Button instructionsBtn = createSciFiButton("📜 PANDUAN", "#ab47bc", "#7b1fa2", 180);
         instructionsBtn.setOnAction(e -> showInstructionsDialog());
 
-        Button musicBtn = createSciFiButton("🎵 MUSIK: " + (SoundManager.isMusicEnabled() ? "ON" : "OFF"), "#ff9100", "#e65100");
+        Button musicBtn = createSciFiButton("🎵 MUSIK: " + (SoundManager.isMusicEnabled() ? "ON" : "OFF"), "#ff9100", "#e65100", 160);
         musicBtn.setOnAction(e -> {
             SoundManager.toggleMusic();
             musicBtn.setText("🎵 MUSIK: " + (SoundManager.isMusicEnabled() ? "ON" : "OFF"));
         });
 
-        Button exitBtn = createSciFiButton("❌ KELUAR", "#ef5350", "#c62828");
+        Button exitBtn = createSciFiButton("❌ KELUAR", "#ef5350", "#c62828", 140);
         exitBtn.setOnAction(e -> System.exit(0));
 
-        VBox buttonsBox = new VBox(12);
-        buttonsBox.setAlignment(Pos.CENTER);
-        buttonsBox.getChildren().addAll(startBtn, leaderboardBtn, instructionsBtn, musicBtn, exitBtn);
+        buttonsBox.getChildren().addAll(launchBtn, leaderboardBtn, instructionsBtn, musicBtn, exitBtn);
 
-        rootBox.getChildren().addAll(titleText, subtitleText, hintText, inputContainer, buttonsBox);
+        rootBox.getChildren().addAll(titleText, subText, mainHangarBox, buttonsBox);
 
-        Scene menuScene = new Scene(rootBox, WIDTH, HEIGHT);
-        primaryStage.setScene(menuScene);
+        Scene hangarScene = new Scene(rootBox, WIDTH, HEIGHT);
+        primaryStage.setScene(hangarScene);
     }
 
-    /**
-     * Memulai sesi permainan baru.
-     */
+    private void renderHangarShipPreview(GraphicsContext pgc, ShipType ship, double angle) {
+        pgc.clearRect(0, 0, 340, 240);
+
+        // Platform Hologram Berputar
+        double cx = 170;
+        double cy = 160;
+        double platW = 180;
+        double platH = 40;
+
+        pgc.setStroke(Color.web("#00e5ff", 0.45));
+        pgc.setLineWidth(1.5);
+        pgc.strokeOval(cx - platW / 2.0, cy - platH / 2.0, platW, platH);
+
+        // Cahaya Sorot Platform
+        LinearGradient beamGrad = new LinearGradient(
+                0, cy, 0, 40, false, CycleMethod.NO_CYCLE,
+                new Stop(0.0, Color.color(0.0, 0.9, 1.0, 0.2)),
+                new Stop(1.0, Color.color(0, 0, 0, 0))
+        );
+        pgc.setFill(beamGrad);
+        double[] bx = {cx - platW / 2.0, cx + platW / 2.0, cx + 50, cx - 50};
+        double[] by = {cy, cy, 40, 40};
+        pgc.fillPolygon(bx, by, 4);
+
+        // Render Model Pesawat 3D Melayang
+        double shipY = 110 + Math.sin(angle * 2.0) * 8.0;
+        double rotCos = Math.cos(angle);
+        double rotSin = Math.sin(angle);
+
+        pgc.save();
+        pgc.translate(cx, shipY);
+
+        // Sayap Kiri & Kanan Berputar Perspektif
+        double wingSpan = 70 * rotCos;
+        pgc.setFill(ship.getAccentColor());
+        pgc.fillPolygon(
+                new double[]{-15 * rotCos, -wingSpan, -20 * rotCos},
+                new double[]{-5, 20, 10},
+                3
+        );
+        pgc.fillPolygon(
+                new double[]{15 * rotCos, wingSpan, 20 * rotCos},
+                new double[]{-5, 20, 10},
+                3
+        );
+
+        // Badan Pesawat
+        LinearGradient shipGrad = new LinearGradient(
+                -20, 0, 20, 0, false, CycleMethod.NO_CYCLE,
+                new Stop(0.0, ship.getBodyColor().darker()),
+                new Stop(0.4, Color.WHITE),
+                new Stop(1.0, ship.getBodyColor())
+        );
+        pgc.setFill(shipGrad);
+        pgc.fillRoundRect(-14 * rotCos, -30, 28 * Math.abs(rotCos), 55, 8, 8);
+
+        // Moncong Depan
+        pgc.fillPolygon(
+                new double[]{0, -14 * rotCos, 14 * rotCos},
+                new double[]{-45, -30, -30},
+                3
+        );
+
+        // Kanopi Kokpit Kaca
+        pgc.setFill(ship.getPrimaryColor());
+        pgc.fillOval(-8 * rotCos, -25, 16 * Math.abs(rotCos), 22);
+
+        // Api Pendorong Belakang
+        pgc.setFill(Color.web("#00e5ff"));
+        pgc.fillOval(-10 * rotCos, 25, 8 * Math.abs(rotCos), 14);
+        pgc.fillOval(2 * rotCos, 25, 8 * Math.abs(rotCos), 14);
+
+        pgc.restore();
+    }
+
     private void startNewGame() {
-        gameObjects.clear();
-        newObjects.clear();
+        worldEntities.clear();
+        newEntities.clear();
+        lasers.clear();
+        enemyPlasmas.clear();
         particles.clear();
         floatingTexts.clear();
 
+        totalGalonCount = 0;
+        levelGalonCount = 0;
         score = 0;
-        galonCount = 0;
-        bossExists = false;
         isPaused = false;
-        Enemy.SPEED = 1.6;
+        inLevelTransition = false;
 
-        player = new Player(WIDTH / 2.0, HEIGHT - 80);
-        gameObjects.add(player);
+        levelManager.reset();
+        LevelData lvl = levelManager.getCurrentLevelData();
+        spaceBackground.setLevelColors(lvl.getNebulaColor1(), lvl.getNebulaColor2());
+
+        // Inisialisasi Pesawat Pemain sesuai pilihan di Hangar
+        player = new PlayerShip3D(selectedShip, selectedDrone);
 
         gameRunning = true;
         gameLoop.start();
         primaryStage.setScene(gameScene);
 
-        floatingTexts.add(new FloatingText("💧 AMBIL GALON SEBANYAK MUNGKIN! HINDARI TABRAKAN UFO!", WIDTH / 2.0 - 280, HEIGHT / 2.0, Color.web("#00e5ff"), 20, 2.5));
+        floatingTexts.add(new FloatingText("MISI DIMULAI: " + lvl.getName(), WIDTH / 2.0 - 200, HEIGHT / 2.0, Color.web("#00e5ff"), 24, 3.0));
     }
 
-    private void spawnEnemyUfo() {
-        int x = random.nextInt(WIDTH - 120) + 60;
-        gameObjects.add(new Enemy(x, -40));
+    private void spawnUfo3D(double speedZ) {
+        double spawnX = (random.nextDouble() * 2.0 - 1.0) * 400.0;
+        double spawnY = (random.nextDouble() * 2.0 - 1.0) * 200.0;
+        worldEntities.add(new UfoEnemy3D(spawnX, spawnY, 1650.0, speedZ));
     }
 
-    private void spawnGalon() {
-        int x = random.nextInt(WIDTH - 100) + 50;
-        // 20% kemungkinan muncul Galon Emas bernilai 3 Galon!
-        boolean isGolden = (random.nextDouble() < 0.20);
-        gameObjects.add(new GalonItem(x, -50, isGolden));
+    private void spawnGalon3D() {
+        double spawnX = (random.nextDouble() * 2.0 - 1.0) * 380.0;
+        double spawnY = (random.nextDouble() * 2.0 - 1.0) * 190.0;
+        boolean golden = (random.nextDouble() < 0.20);
+        worldEntities.add(new Galon3D(spawnX, spawnY, 1650.0, 4.2, golden));
     }
 
-    private void spawnBossMothership() {
-        if (!bossExists) {
-            bossExists = true;
-            BossEnemy boss = new BossEnemy(WIDTH / 2.0, -80);
-            gameObjects.add(boss);
-            SoundManager.playBossAlert();
-            spaceBackground.triggerScreenShake(12.0);
-            floatingTexts.add(new FloatingText("⚠️ BOSS UFO MOTHERSHIP MUNCUL!", WIDTH / 2.0 - 180, HEIGHT / 2.0 - 50, Color.web("#ff1744"), 22, 3.0));
-        }
+    private void spawnAsteroid3D() {
+        double spawnX = (random.nextDouble() * 2.0 - 1.0) * 420.0;
+        double spawnY = (random.nextDouble() * 2.0 - 1.0) * 220.0;
+        worldEntities.add(new Asteroid3D(spawnX, spawnY, 1700.0, 3.5));
     }
 
-    /**
-     * Pengecekan Tabrakan (Collision Detection).
-     */
-    private void checkCollisions() {
-        List<Bullet> bullets = new ArrayList<>();
-        List<Enemy> enemies = new ArrayList<>();
-        List<EnemyBullet> enemyBullets = new ArrayList<>();
-        List<GalonItem> galons = new ArrayList<>();
+    private void handlePhysicsAndCollisions() {
+        if (player == null || player.isDead()) return;
 
-        for (GameObject obj : gameObjects) {
-            if (obj instanceof Bullet) bullets.add((Bullet) obj);
-            else if (obj instanceof Enemy) enemies.add((Enemy) obj);
-            else if (obj instanceof EnemyBullet) enemyBullets.add((EnemyBullet) obj);
-            else if (obj instanceof GalonItem) galons.add((GalonItem) obj);
-        }
+        double shipX = player.getX();
+        double shipY = player.getY();
+        double shipZ = player.getZ();
+        double magnetDist = player.getMagnetRange();
 
-        // 1. Peluru Pemain vs UFO Musuh (Opsional untuk membuka jalur)
-        for (Bullet bullet : bullets) {
-            for (Enemy enemy : enemies) {
-                if (!bullet.isDead() && !enemy.isDead() && bullet.getBounds().intersects(enemy.getBounds())) {
-                    bullet.setDead(true);
-                    if (enemy instanceof BossEnemy) {
-                        BossEnemy boss = (BossEnemy) enemy;
-                        boss.takeDamage();
-                        score += 50;
-                        floatingTexts.add(new FloatingText("+50", boss.getX(), boss.getY() - 10, Color.web("#ffea00"), 14, 0.8));
-                        SoundManager.playHit();
-                        if (boss.isDead()) {
-                            score += 500;
-                            galonCount += 5; // Mengalahkan Boss memberi 5 Galon bonus!
-                            spaceBackground.triggerScreenShake(16.0);
-                            boss.spawnExplosionParticles(particles);
-                            SoundManager.playExplosion();
-                            floatingTexts.add(new FloatingText("💥 BOSS HANCUR! +5 GALON BONUS!", WIDTH / 2.0 - 180, HEIGHT / 2.0 - 40, Color.web("#00e5ff"), 24, 2.5));
-                        }
-                    } else {
-                        enemy.setDead(true);
-                        score += 20;
-                        enemy.spawnExplosionParticles(particles);
-                        SoundManager.playExplosion();
-                        spaceBackground.triggerScreenShake(4.0);
-                        floatingTexts.add(new FloatingText("UFO HANCUR", enemy.getX() - 20, enemy.getY(), Color.web("#69f0ae"), 13, 0.7));
+        // 1. Tarikan Magnet Gravitasi & Pengumpulan Galon
+        for (Entity3D entity : worldEntities) {
+            if (entity instanceof Galon3D && !entity.isDead()) {
+                Galon3D galon = (Galon3D) entity;
+
+                // Efek Magnet jika dalam jangkauan
+                double dx = shipX - galon.getX();
+                double dy = shipY - galon.getY();
+                double dz = shipZ - galon.getZ();
+                double dist3D = Math.sqrt(dx * dx + dy * dy + dz * dz);
+
+                if (dist3D < magnetDist) {
+                    galon.attractTowards(shipX, shipY, shipZ, 0.08);
+                }
+
+                // Ambil Galon jika mencapai pesawat pada kedalaman yang sama (toleransi Z=50)
+                if (Math.abs(galon.getZ() - shipZ) < 55.0) {
+                    double dist2D = Math.sqrt(dx * dx + dy * dy);
+                    if (dist2D < 50.0) {
+                        collectGalon3D(galon);
                     }
                 }
             }
+        }
 
-            // 2. Peluru Pemain Mengambil Galon Jarak Jauh
-            for (GalonItem galon : galons) {
-                if (!bullet.isDead() && !galon.isDead() && bullet.getBounds().intersects(galon.getBounds())) {
-                    bullet.setDead(true);
-                    collectGalon(galon);
+        // 2. Tabrakan Laser Pemain vs UFO & Boss
+        for (Laser3D laser : lasers) {
+            if (laser.isDead()) continue;
+
+            for (Entity3D entity : worldEntities) {
+                if (entity.isDead()) continue;
+
+                if (entity instanceof UfoEnemy3D) {
+                    UfoEnemy3D ufo = (UfoEnemy3D) entity;
+                    if (laser.checkCollision3D(ufo, 45.0)) {
+                        laser.setDead(true);
+                        ufo.setDead(true);
+                        score += 30;
+                        ufo.spawnExplosion(particles, camera);
+                        SoundManager.playExplosion();
+                        spaceBackground.triggerScreenShake(5.0);
+                        floatingTexts.add(new FloatingText("UFO HANCUR", camera.projectX(ufo.getX(), ufo.getZ()), camera.projectY(ufo.getY(), ufo.getZ()), Color.web("#69f0ae"), 14, 0.8));
+                    }
+                } else if (entity instanceof BossMothership3D) {
+                    BossMothership3D boss = (BossMothership3D) entity;
+                    if (laser.checkCollision3D(boss, 65.0)) {
+                        laser.setDead(true);
+                        boss.takeDamage();
+                        score += 50;
+                        SoundManager.playHit();
+                        if (boss.isDead()) {
+                            score += 1000;
+                            totalGalonCount += 10;
+                            levelGalonCount += 10;
+                            SoundManager.playExplosion();
+                            spaceBackground.triggerScreenShake(20.0);
+                            floatingTexts.add(new FloatingText("💥 BOSS ALIEN MOTHERSHIP HANCUR! +10 GALON BONUS!", WIDTH / 2.0 - 240, HEIGHT / 2.0, Color.web("#ffd700"), 26, 3.5));
+                        }
+                    }
+                } else if (entity instanceof Galon3D) {
+                    // Opsional tembak galon untuk ambil langsung
+                    Galon3D g = (Galon3D) entity;
+                    if (laser.checkCollision3D(g, 45.0)) {
+                        laser.setDead(true);
+                        collectGalon3D(g);
+                    }
                 }
             }
         }
 
-        // 3. Roket Pemain Mengambil Galon Langsung
-        if (player != null && !player.isDead()) {
-            for (GalonItem galon : galons) {
-                if (!galon.isDead() && player.getBounds().intersects(galon.getBounds())) {
-                    collectGalon(galon);
+        // 3. Tabrakan Langsung Pesawat Pemain vs UFO (3x Tabrakan = Mati)
+        for (Entity3D entity : worldEntities) {
+            if (entity.isDead()) continue;
+
+            if (entity instanceof UfoEnemy3D) {
+                UfoEnemy3D ufo = (UfoEnemy3D) entity;
+                if (Math.abs(ufo.getZ() - shipZ) < 45.0) {
+                    double dx = shipX - ufo.getX();
+                    double dy = shipY - ufo.getY();
+                    double dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist < 46.0) {
+                        ufo.setDead(true);
+                        ufo.spawnExplosion(particles, camera);
+                        boolean damaged = player.takeDamage();
+                        if (damaged) {
+                            spaceBackground.triggerScreenShake(16.0);
+                            floatingTexts.add(new FloatingText("💥 TERTABRAK UFO! NYAWA: " + player.getHealth() + "/3",
+                                    camera.projectX(shipX, shipZ) - 100, camera.projectY(shipY, shipZ) - 30, Color.web("#ff1744"), 20, 1.5));
+                        }
+                    }
+                }
+            } else if (entity instanceof Asteroid3D) {
+                Asteroid3D ast = (Asteroid3D) entity;
+                if (Math.abs(ast.getZ() - shipZ) < 45.0) {
+                    double dx = shipX - ast.getX();
+                    double dy = shipY - ast.getY();
+                    if (Math.sqrt(dx * dx + dy * dy) < 44.0) {
+                        ast.setDead(true);
+                        boolean damaged = player.takeDamage();
+                        if (damaged) {
+                            spaceBackground.triggerScreenShake(16.0);
+                            floatingTexts.add(new FloatingText("💥 MENABRAK ASTEROID! NYAWA: " + player.getHealth() + "/3",
+                                    camera.projectX(shipX, shipZ) - 110, camera.projectY(shipY, shipZ) - 30, Color.web("#ff1744"), 20, 1.5));
+                        }
+                    }
                 }
             }
+        }
 
-            // 4. Peluru Musuh vs Roket Pemain
-            for (EnemyBullet eb : enemyBullets) {
-                if (!eb.isDead() && player.getBounds().intersects(eb.getBounds())) {
-                    eb.setDead(true);
+        // 4. Tabrakan Peluru Plasma Musuh vs Pesawat Pemain
+        for (EnemyPlasma3D plasma : enemyPlasmas) {
+            if (!plasma.isDead() && Math.abs(plasma.getZ() - shipZ) < 40.0) {
+                double dx = shipX - plasma.getX();
+                double dy = shipY - plasma.getY();
+                if (Math.sqrt(dx * dx + dy * dy) < 38.0) {
+                    plasma.setDead(true);
                     boolean damaged = player.takeDamage();
                     if (damaged) {
                         spaceBackground.triggerScreenShake(12.0);
-                        spawnSparks(player.getX(), player.getY(), Color.web("#ff1744"));
-                        floatingTexts.add(new FloatingText("⚠️ TERTEMBAK! NYAWA: " + player.getHealth() + "/3",
-                                player.getX() - 80, player.getY() - 25, Color.web("#ff5252"), 16, 1.2));
-                    }
-                }
-            }
-
-            // 5. Tabrakan Langsung UFO vs Roket Pemain (Nyawa hilang 1, 3x tabrakan = mati)
-            for (Enemy enemy : enemies) {
-                if (!enemy.isDead() && player.getBounds().intersects(enemy.getBounds())) {
-                    if (!(enemy instanceof BossEnemy)) {
-                        enemy.setDead(true);
-                        enemy.spawnExplosionParticles(particles);
-                    }
-                    boolean damaged = player.takeDamage();
-                    if (damaged) {
-                        spaceBackground.triggerScreenShake(16.0);
-                        spawnSparks(player.getX(), player.getY(), Color.web("#ff1744"));
-                        floatingTexts.add(new FloatingText("💥 TERTABRAK UFO! NYAWA: " + player.getHealth() + "/3",
-                                player.getX() - 95, player.getY() - 25, Color.web("#ff1744"), 18, 1.5));
+                        floatingTexts.add(new FloatingText("⚠️ TERTEMBAK PLASMA! NYAWA: " + player.getHealth() + "/3",
+                                camera.projectX(shipX, shipZ) - 90, camera.projectY(shipY, shipZ) - 30, Color.web("#ff5252"), 18, 1.2));
                     }
                 }
             }
         }
     }
 
-    private void collectGalon(GalonItem galon) {
+    private void collectGalon3D(Galon3D galon) {
         galon.setDead(true);
         int val = galon.getGalonValue();
-        galonCount += val;
+        totalGalonCount += val;
+        levelGalonCount += val;
         score += galon.getScoreValue();
         SoundManager.playGalonPickup();
 
+        double sx = camera.projectX(galon.getX(), galon.getZ());
+        double sy = camera.projectY(galon.getY(), galon.getZ());
+
         if (galon.isGolden()) {
-            spawnSparks(galon.getX(), galon.getY(), Color.web("#ffd700"));
-            floatingTexts.add(new FloatingText("✨ +3 GALON EMAS! (+300)", galon.getX() - 40, galon.getY(), Color.web("#ffd700"), 20, 1.5));
+            floatingTexts.add(new FloatingText("✨ +3 GALON EMAS! (+300)", sx - 50, sy, Color.web("#ffd700"), 20, 1.5));
         } else {
-            spawnSparks(galon.getX(), galon.getY(), Color.web("#40c4ff"));
-            floatingTexts.add(new FloatingText("💧 +1 GALON! (+100)", galon.getX() - 30, galon.getY(), Color.web("#00e5ff"), 18, 1.2));
+            floatingTexts.add(new FloatingText("💧 +1 GALON! (+100)", sx - 35, sy, Color.web("#00e5ff"), 18, 1.2));
         }
     }
 
-    private void spawnSparks(double x, double y, Color color) {
-        for (int i = 0; i < 15; i++) {
-            double angle = random.nextDouble() * Math.PI * 2;
-            double spd = 2.0 + random.nextDouble() * 4.0;
-            particles.add(new Particle(x, y, Math.cos(angle) * spd, Math.sin(angle) * spd, 4, 0.4, color));
-        }
-    }
+    private void checkLevelProgress() {
+        if (inLevelTransition) return;
 
-    /**
-     * Pengecekan objek yang mencapai bawah layar.
-     * Sesuai konsep baru: UFO lolos TIDAK MENGURANGI NYAWA! Pemain bebas menghindarinya.
-     */
-    private void checkEnemiesBottom() {
-        for (GameObject obj : gameObjects) {
-            if (obj instanceof Enemy && !(obj instanceof BossEnemy)) {
-                Enemy enemy = (Enemy) obj;
-                if (enemy.getY() >= HEIGHT + 30) {
-                    // UFO hanya dihapus secara damai, tidak ada penalti nyawa / skor!
-                    enemy.setDead(true);
-                }
-            } else if (obj instanceof GalonItem) {
-                GalonItem g = (GalonItem) obj;
-                if (g.getY() >= HEIGHT + 40) {
-                    g.setDead(true);
-                }
+        if (levelManager.canLevelUp(levelGalonCount)) {
+            boolean advanced = levelManager.advanceLevel();
+            if (advanced) {
+                levelGalonCount = 0;
+                inLevelTransition = true;
+                warpTimer = 3.0; // Durasi efek warp 3 detik
+
+                SoundManager.playWarp();
+                SoundManager.playLevelUp();
+                spaceBackground.triggerWarpJump(3.0);
+
+                LevelData nextLvl = levelManager.getCurrentLevelData();
+                spaceBackground.setLevelColors(nextLvl.getNebulaColor1(), nextLvl.getNebulaColor2());
+
+                floatingTexts.add(new FloatingText("🚀 HYPERSPACE WARP ACTIVATED!", WIDTH / 2.0 - 200, HEIGHT / 2.0 - 40, Color.web("#00e5ff"), 28, 3.0));
+                floatingTexts.add(new FloatingText("MEMASUKI " + nextLvl.getName(), WIDTH / 2.0 - 180, HEIGHT / 2.0 + 10, Color.web("#ffd600"), 22, 3.0));
             }
         }
     }
 
     /**
-     * Render HUD (Heads-Up Display) bergaya futuristik di bagian atas.
-     * Galon yang dikumpulkan menjadi sorotan utama di tengah.
+     * Render HUD Sci-Fi Profesional di bagian atas layar.
      */
-    private void renderHUD() {
+    private void renderProfessionalHUD() {
         gc.save();
 
-        // Baris Kontainer Atas Semi-Transparan
-        gc.setFill(Color.color(0.02, 0.05, 0.12, 0.85));
-        gc.fillRoundRect(15, 12, WIDTH - 30, 52, 14, 14);
-        gc.setStroke(Color.web("#00b0ff", 0.5));
-        gc.setLineWidth(1.2);
-        gc.strokeRoundRect(15, 12, WIDTH - 30, 52, 14, 14);
+        LevelData currentLvl = levelManager.getCurrentLevelData();
 
-        // Pilot Name
-        gc.setFont(Font.font("Segoe UI", FontWeight.BOLD, 15));
+        // 1. Bar Panel Atas Glassmorphism
+        gc.setFill(Color.color(0.02, 0.05, 0.12, 0.88));
+        gc.fillRoundRect(16, 12, WIDTH - 32, 54, 16, 16);
+        gc.setStroke(Color.web("#00e5ff", 0.55));
+        gc.setLineWidth(1.4);
+        gc.strokeRoundRect(16, 12, WIDTH - 32, 54, 16, 16);
+
+        // Pilot & Sektor Level (Kiri)
+        gc.setFont(Font.font("Segoe UI", FontWeight.BOLD, 13));
         gc.setFill(Color.web("#90caf9"));
-        gc.fillText("PILOT: " + currentPlayerName.toUpperCase(), 35, 43);
+        gc.fillText("PILOT: " + currentPlayerName.toUpperCase(), 35, 34);
 
-        // UTAMA: Total Galon Dikumpulkan (Disorot Paling Menonjol di Tengah)
-        renderMiniGalon(gc, 340, 22);
+        gc.setFont(Font.font("Segoe UI", FontWeight.EXTRA_BOLD, 14));
+        gc.setFill(Color.web("#ffd600"));
+        gc.fillText(currentLvl.getName() + " (" + currentLvl.getLevelNumber() + "/5)", 35, 52);
+
+        // UTAMA: Total Galon & Level Target Meter (Tengah)
+        renderMiniGalonHUD(gc, 340, 20);
         gc.setFont(Font.font("Segoe UI", FontWeight.EXTRA_BOLD, 22));
         gc.setFill(Color.web("#00e5ff"));
-        gc.fillText("TOTAL GALON: " + galonCount, 368, 45);
+        gc.fillText("TOTAL GALON: " + totalGalonCount, 368, 44);
 
-        // Skor Sekunder
-        gc.setFont(Font.font("Segoe UI", FontWeight.BOLD, 15));
-        gc.setFill(Color.web("#ffea00"));
-        gc.fillText("SKOR: " + score, 620, 43);
+        // Progress Bar Menuju Level Berikutnya
+        if (!levelManager.isFinalLevel()) {
+            double progW = 120;
+            double progH = 6;
+            double progX = 570;
+            double progY = 36;
+            double ratio = Math.min(1.0, (double) levelGalonCount / currentLvl.getTargetGalon());
 
-        // Nyawa Pemain (3 Nyawa: Tertabrak 3x = Mati)
+            gc.setFill(Color.color(0, 0, 0, 0.6));
+            gc.fillRoundRect(progX, progY, progW, progH, 4, 4);
+            gc.setFill(Color.web("#00e676"));
+            gc.fillRoundRect(progX, progY, progW * ratio, progH, 4, 4);
+
+            gc.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 10));
+            gc.setFill(Color.web("#b0bec5"));
+            gc.fillText("WARP TARGET: " + levelGalonCount + "/" + currentLvl.getTargetGalon(), progX, progY - 4);
+        } else {
+            gc.setFont(Font.font("Segoe UI", FontWeight.BOLD, 12));
+            gc.setFill(Color.web("#ff1744"));
+            gc.fillText("🔥 FINAL BOSS SECTOR 🔥", 570, 42);
+        }
+
+        // Nyawa Pemain (3 Nyawa: Kanan)
         int hp = (player != null) ? Math.max(0, player.getHealth()) : 0;
-        gc.setFont(Font.font("Segoe UI", FontWeight.BOLD, 14));
+        gc.setFont(Font.font("Segoe UI", FontWeight.BOLD, 13));
         gc.setFill(hp == 1 ? Color.web("#ff1744") : Color.web("#cfd8dc"));
-        gc.fillText("NYAWA (" + hp + "/3): ", 735, 43);
+        gc.fillText("NYAWA (" + hp + "/3):", 735, 44);
 
         for (int i = 0; i < 3; i++) {
-            double hX = 840 + (i * 24);
+            double hX = 835 + (i * 24);
             double hY = 28;
             if (i < hp) {
-                // Hati / Nyawa aktif (Merah Terang)
                 gc.setFill(Color.web("#ff1744"));
                 gc.fillRoundRect(hX, hY, 18, 18, 6, 6);
                 gc.setStroke(Color.WHITE);
                 gc.setLineWidth(1.2);
                 gc.strokeRoundRect(hX, hY, 18, 18, 6, 6);
             } else {
-                // Hati / Nyawa hilang (Gelap)
                 gc.setFill(Color.color(0.3, 0.3, 0.3, 0.4));
                 gc.fillRoundRect(hX, hY, 18, 18, 6, 6);
                 gc.setStroke(Color.color(0.5, 0.5, 0.5, 0.3));
@@ -567,15 +865,15 @@ public class SpaceShooter extends Application {
             }
         }
 
-        // Bantuan tombol
+        // Bantuan Tombol
         gc.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 11));
         gc.setFill(Color.web("#78909c"));
-        gc.fillText("[ESC] Pause | [M] Audio", WIDTH - 165, 43);
+        gc.fillText("[ESC] Pause | [M] Audio", WIDTH - 165, 44);
 
         gc.restore();
     }
 
-    private void renderMiniGalon(GraphicsContext gc, double gx, double gy) {
+    private void renderMiniGalonHUD(GraphicsContext gc, double gx, double gy) {
         gc.setFill(Color.web("#0288d1"));
         gc.fillRoundRect(gx, gy + 4, 16, 20, 4, 4);
         gc.setFill(Color.web("#4fc3f7"));
@@ -586,7 +884,7 @@ public class SpaceShooter extends Application {
 
     private void renderPauseOverlay() {
         gc.save();
-        gc.setFill(Color.color(0, 0, 0, 0.65));
+        gc.setFill(Color.color(0, 0, 0, 0.7));
         gc.fillRect(0, 0, WIDTH, HEIGHT);
 
         gc.setFont(Font.font("Segoe UI", FontWeight.BOLD, 42));
@@ -600,48 +898,46 @@ public class SpaceShooter extends Application {
         gc.restore();
     }
 
-    /**
-     * Ditampilkan ketika nyawa pemain habis.
-     */
     private void onGameOver() {
         gameRunning = false;
         gameLoop.stop();
 
-        // Simpan ke Leaderboard (dengan urutan galon terbanyak)
-        leaderboardManager.addScore(currentPlayerName, score, galonCount);
+        leaderboardManager.addScore(currentPlayerName, score, totalGalonCount);
 
         VBox rootBox = new VBox(20);
         rootBox.setAlignment(Pos.CENTER);
-        rootBox.setStyle("-fx-background-color: linear-gradient(to bottom, #1a0005, #2b0b14, #0d0014);");
+        rootBox.setStyle("-fx-background-color: linear-gradient(to bottom, #150004, #260914, #0a0014);");
 
         Text overText = new Text("MISI SELESAI");
         overText.setFont(Font.font("Segoe UI", FontWeight.EXTRA_BOLD, 52));
         overText.setFill(Color.web("#00e5ff"));
         overText.setEffect(new DropShadow(25, Color.web("#00b0ff")));
 
-        // Panel Statistik Misi
         VBox statsBox = new VBox(10);
         statsBox.setAlignment(Pos.CENTER);
-        statsBox.setMaxWidth(440);
+        statsBox.setMaxWidth(460);
         statsBox.setStyle(
-                "-fx-background-color: rgba(20, 10, 25, 0.85);"
-                + "-fx-padding: 22;"
+                "-fx-background-color: rgba(20, 10, 30, 0.88);"
+                + "-fx-padding: 24;"
                 + "-fx-background-radius: 14;"
                 + "-fx-border-color: #00e5ff;"
                 + "-fx-border-width: 1.5;"
                 + "-fx-border-radius: 14;"
         );
 
-        Label pLabel = new Label("PILOT: " + currentPlayerName.toUpperCase());
-        pLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 18));
+        Label pLabel = new Label("PILOT: " + currentPlayerName.toUpperCase() + " (" + selectedShip.getName() + ")");
+        pLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 17));
         pLabel.setTextFill(Color.WHITE);
 
-        // Sorotan Utama: Galon yang Dikumpulkan
-        Label gLabel = new Label("💧 TOTAL GALON: " + galonCount + " Galon");
+        Label lvlLabel = new Label("SEKTOR TERTINGGI: " + levelManager.getCurrentLevelData().getName());
+        lvlLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 16));
+        lvlLabel.setTextFill(Color.web("#ffd600"));
+
+        Label gLabel = new Label("💧 TOTAL GALON KOSMIK: " + totalGalonCount + " Galon");
         gLabel.setFont(Font.font("Segoe UI", FontWeight.EXTRA_BOLD, 26));
         gLabel.setTextFill(Color.web("#00e5ff"));
 
-        Label sLabel = new Label("TOTAL SKOR: " + score);
+        Label sLabel = new Label("SKOR MISI: " + score);
         sLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 18));
         sLabel.setTextFill(Color.web("#ffea00"));
 
@@ -649,20 +945,20 @@ public class SpaceShooter extends Application {
         savedLabel.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 13));
         savedLabel.setTextFill(Color.web("#81c784"));
 
-        statsBox.getChildren().addAll(pLabel, gLabel, sLabel, savedLabel);
+        statsBox.getChildren().addAll(pLabel, lvlLabel, gLabel, sLabel, savedLabel);
 
-        Button playAgainBtn = createSciFiButton("🔄 MAIN LAGI", "#00e676", "#00c853");
+        Button playAgainBtn = createSciFiButton("🔄 MAIN LAGI", "#00e676", "#00c853", 240);
         playAgainBtn.setOnAction(e -> startNewGame());
 
-        Button leaderBtn = createSciFiButton("🏆 LIHAT LEADERBOARD", "#2979ff", "#1565c0");
+        Button leaderBtn = createSciFiButton("🏆 LIHAT LEADERBOARD", "#2979ff", "#1565c0", 240);
         leaderBtn.setOnAction(e -> showLeaderboardScreen());
 
-        Button menuBtn = createSciFiButton("🏠 MENU UTAMA", "#ab47bc", "#7b1fa2");
-        menuBtn.setOnAction(e -> showMainMenu());
+        Button hangarBtn = createSciFiButton("🚀 KEMBALI KE HANGAR", "#ab47bc", "#7b1fa2", 240);
+        hangarBtn.setOnAction(e -> showHangarMenu());
 
         VBox btnBox = new VBox(12);
         btnBox.setAlignment(Pos.CENTER);
-        btnBox.getChildren().addAll(playAgainBtn, leaderBtn, menuBtn);
+        btnBox.getChildren().addAll(playAgainBtn, leaderBtn, hangarBtn);
 
         rootBox.getChildren().addAll(overText, statsBox, btnBox);
 
@@ -670,10 +966,6 @@ public class SpaceShooter extends Application {
         primaryStage.setScene(overScene);
     }
 
-    /**
-     * Tampilan Layar Leaderboard (Papan Skor Tertinggi).
-     * Urutan utama berdasarkan Galon Terbanyak.
-     */
     private void showLeaderboardScreen() {
         VBox rootBox = new VBox(18);
         rootBox.setAlignment(Pos.CENTER);
@@ -685,7 +977,6 @@ public class SpaceShooter extends Application {
         titleText.setFill(Color.web("#ffea00"));
         titleText.setEffect(new DropShadow(18, Color.web("#ffb300")));
 
-        // List Leaderboard
         VBox tableBox = new VBox(8);
         tableBox.setAlignment(Pos.CENTER);
         tableBox.setMaxWidth(720);
@@ -698,7 +989,6 @@ public class SpaceShooter extends Application {
                 + "-fx-border-radius: 12;"
         );
 
-        // Header Row: Kolom Galon ditaruh sebelum Skor
         HBox headerRow = createLeaderboardRow("NO", "NAMA PILOT", "💧 GALON", "SKOR", "WAKTU", true);
         tableBox.getChildren().add(headerRow);
 
@@ -710,8 +1000,8 @@ public class SpaceShooter extends Application {
             tableBox.getChildren().add(row);
         }
 
-        Button backBtn = createSciFiButton("⬅️ KEMBALI KE MENU", "#2979ff", "#1565c0");
-        backBtn.setOnAction(e -> showMainMenu());
+        Button backBtn = createSciFiButton("⬅️ KEMBALI KE HANGAR", "#2979ff", "#1565c0", 260);
+        backBtn.setOnAction(e -> showHangarMenu());
 
         rootBox.getChildren().addAll(titleText, tableBox, backBtn);
 
@@ -739,7 +1029,6 @@ public class SpaceShooter extends Application {
         nameLbl.setFont(Font.font("Segoe UI", FontWeight.BOLD, isHeader ? 14 : 15));
         nameLbl.setTextFill(isHeader ? Color.web("#00e5ff") : Color.WHITE);
 
-        // Galon menjadi kolom sorotan utama
         Label galonLbl = new Label(galon);
         galonLbl.setPrefWidth(120);
         galonLbl.setFont(Font.font("Segoe UI", FontWeight.EXTRA_BOLD, isHeader ? 14 : 16));
@@ -759,37 +1048,32 @@ public class SpaceShooter extends Application {
         return row;
     }
 
-    /**
-     * Dialog Petunjuk Permainan.
-     */
     private void showInstructionsDialog() {
         Alert alert = new Alert(Alert.AlertType.INFORMATION);
-        alert.setTitle("Petunjuk Space Shooter 3D");
-        alert.setHeaderText("🚀 PANDUAN MISI PENGUMPUL GALON");
+        alert.setTitle("Petunjuk Space Invader 3D");
+        alert.setHeaderText("🚀 PANDUAN MISI LUAR ANGKASA 3D (5 SEKTOR)");
         alert.setContentText(
                 "🎮 KONTROL PERMAINAN:\n"
-                + "• [W, A, S, D] atau [Panah]: Menggerakkan Roket 3D\n"
-                + "• [SPASI]: Menembak Laser (Bisa juga untuk mengambil galon jarak jauh)\n"
+                + "• [W, A, S, D] atau [Panah]: Manuver Pesawat 3D (Naik, Turun, Belok Roll Kiri & Kanan)\n"
+                + "• [SPASI]: Tembak Laser 3D ke Horizon (Bisa juga untuk mengambil galon jarak jauh)\n"
                 + "• [M]: Menyalakan / Mematikan Musik Latar (Mute/Unmute)\n"
                 + "• [ESC]: Jeda Permainan (Pause/Resume)\n\n"
-                + "💧 ATURAN MISI:\n"
-                + "1. Fokus utama Anda adalah mengumpulkan GALON KOSMIK sebanyak mungkin!\n"
+                + "💧 ATURAN MISI & SISTEM LEVEL:\n"
+                + "1. Fokus Utama: Kumpulkan Galon Kosmik 💧 sebanyak mungkin!\n"
                 + "2. Anda TIDAK HARUS membunuh semua UFO. Boleh menembaknya atau menghindarinya!\n"
-                + "3. UFO yang lolos ke bawah layar TIDAK MENGURANGI NYAWA.\n"
-                + "4. Roket memiliki 3 NYAWA. Setiap kali bertabrakan langsung dengan UFO, nyawa hilang 1!\n"
-                + "5. Jika 3 KALI TERTABRAK UFO, roket akan hancur dan misi berakhir (Game Over)."
+                + "3. UFO yang melayang melewati pemain tidak mengurangi nyawa.\n"
+                + "4. Roket memiliki 3 NYAWA. Jika bertabrakan langsung dengan UFO / Asteroid, nyawa hilang 1!\n"
+                + "5. Tiga kali tabrakan = Pesawat hancur (Game Over).\n"
+                + "6. Kumpulkan target galon untuk memicu HYPERSPACE WARP JUMP ke Sektor Level berikutnya hingga Level 5 (Final Boss)!"
         );
         alert.showAndWait();
     }
 
-    /**
-     * Helper untuk membuat tombol bernuansa Sci-Fi futuristik dengan transisi glow saat hover.
-     */
-    private Button createSciFiButton(String text, String primaryColor, String darkColor) {
+    private Button createSciFiButton(String text, String primaryColor, String darkColor, double width) {
         Button btn = new Button(text);
-        btn.setPrefWidth(350);
+        btn.setPrefWidth(width);
         btn.setPrefHeight(42);
-        btn.setFont(Font.font("Segoe UI", FontWeight.BOLD, 15));
+        btn.setFont(Font.font("Segoe UI", FontWeight.BOLD, 14));
         String normalStyle =
                 "-fx-background-color: linear-gradient(to right, " + darkColor + ", " + primaryColor + ");"
                 + "-fx-text-fill: white;"
@@ -818,5 +1102,42 @@ public class SpaceShooter extends Application {
         });
 
         return btn;
+    }
+
+    private Button createMiniButton(String text) {
+        Button btn = new Button(text);
+        btn.setPrefWidth(44);
+        btn.setPrefHeight(36);
+        btn.setFont(Font.font("Segoe UI", FontWeight.EXTRA_BOLD, 16));
+        btn.setStyle(
+                "-fx-background-color: #0b1d3a;"
+                + "-fx-text-fill: #00e5ff;"
+                + "-fx-border-color: #00e5ff;"
+                + "-fx-border-radius: 8;"
+                + "-fx-background-radius: 8;"
+                + "-fx-cursor: hand;"
+        );
+        btn.setOnMouseEntered(e -> btn.setStyle("-fx-background-color: #00e5ff; -fx-text-fill: black; -fx-border-radius: 8; -fx-background-radius: 8;"));
+        btn.setOnMouseExited(e -> btn.setStyle("-fx-background-color: #0b1d3a; -fx-text-fill: #00e5ff; -fx-border-color: #00e5ff; -fx-border-radius: 8; -fx-background-radius: 8;"));
+        return btn;
+    }
+
+    private ProgressBar createStatBar(double progress, String colorHex) {
+        ProgressBar bar = new ProgressBar(progress);
+        bar.setPrefWidth(160);
+        bar.setPrefHeight(12);
+        bar.setStyle("-fx-accent: " + colorHex + ";");
+        return bar;
+    }
+
+    private HBox createStatRow(String labelText, ProgressBar bar) {
+        HBox row = new HBox(10);
+        row.setAlignment(Pos.CENTER_LEFT);
+        Label lbl = new Label(labelText);
+        lbl.setFont(Font.font("Segoe UI", FontWeight.BOLD, 11));
+        lbl.setTextFill(Color.web("#90caf9"));
+        lbl.setPrefWidth(140);
+        row.getChildren().addAll(lbl, bar);
+        return row;
     }
 }

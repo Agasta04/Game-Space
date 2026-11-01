@@ -22,6 +22,9 @@ public class SoundManager {
     private static byte[] galonAudio;
     private static byte[] hitAudio;
     private static byte[] bossAlertAudio;
+    private static byte[] warpAudio;
+    private static byte[] levelUpAudio;
+    private static byte[] clickAudio;
 
     static {
         try {
@@ -30,6 +33,9 @@ public class SoundManager {
             galonAudio = generateGalonSample();
             hitAudio = generateHitSample();
             bossAlertAudio = generateBossAlertSample();
+            warpAudio = generateWarpSample();
+            levelUpAudio = generateLevelUpSample();
+            clickAudio = generateClickSample();
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -81,6 +87,21 @@ public class SoundManager {
         playPcmData(bossAlertAudio);
     }
 
+    public static void playWarp() {
+        if (!soundEnabled) return;
+        playPcmData(warpAudio);
+    }
+
+    public static void playLevelUp() {
+        if (!soundEnabled) return;
+        playPcmData(levelUpAudio);
+    }
+
+    public static void playClick() {
+        if (!soundEnabled) return;
+        playPcmData(clickAudio);
+    }
+
     private static void playPcmData(byte[] pcmData) {
         if (pcmData == null) return;
         new Thread(() -> {
@@ -89,8 +110,7 @@ public class SoundManager {
                 Clip clip = AudioSystem.getClip();
                 clip.open(format, pcmData, 0, pcmData.length);
                 clip.start();
-                // Tunggu sampai selesai lalu close
-                Thread.sleep(Math.max(100, (long) (pcmData.length * 1000.0 / SAMPLE_RATE)));
+                Thread.sleep(Math.max(80, (long) (pcmData.length * 1000.0 / SAMPLE_RATE)));
                 clip.close();
             } catch (Exception ignored) {
             }
@@ -121,7 +141,7 @@ public class SoundManager {
             double progress = (double) i / length;
             double envelope = Math.pow(1.0 - progress, 2.2);
             double noise = (rand.nextDouble() * 2.0 - 1.0);
-            lowPass = lowPass * 0.8 + noise * 0.2; // Filter low-pass
+            lowPass = lowPass * 0.8 + noise * 0.2;
             double sample = lowPass * envelope;
             buffer[i] = (byte) (sample * 120 + 128);
         }
@@ -147,7 +167,7 @@ public class SoundManager {
         return buffer;
     }
 
-    // Suara tabrakan / damage
+    // Suara tabrakan
     private static byte[] generateHitSample() {
         int length = (int) (SAMPLE_RATE * 0.15);
         byte[] buffer = new byte[length];
@@ -175,21 +195,59 @@ public class SoundManager {
         return buffer;
     }
 
-    /**
-     * Memulai pemutaran musik latar luar angkasa retro synthwave secara looping.
-     */
+    // Suara Hyperspace Warp Jump
+    private static byte[] generateWarpSample() {
+        int length = (int) (SAMPLE_RATE * 0.85);
+        byte[] buffer = new byte[length];
+        for (int i = 0; i < length; i++) {
+            double t = (double) i / SAMPLE_RATE;
+            double progress = (double) i / length;
+            double freq = 120.0 + progress * progress * 1400.0; // Frekuensi melesat naik
+            double sample = Math.sin(2 * Math.PI * freq * t) * (0.5 + 0.5 * Math.sin(progress * Math.PI));
+            buffer[i] = (byte) (sample * 115 + 128);
+        }
+        return buffer;
+    }
+
+    // Suara Naik Level Fanfare
+    private static byte[] generateLevelUpSample() {
+        int length = (int) (SAMPLE_RATE * 0.6);
+        byte[] buffer = new byte[length];
+        double[] notes = {392.0, 523.25, 659.25, 783.99, 1046.50};
+        int noteStep = length / notes.length;
+        for (int i = 0; i < length; i++) {
+            int nIdx = Math.min(notes.length - 1, i / noteStep);
+            double t = (double) i / SAMPLE_RATE;
+            double env = 1.0 - ((double) (i % noteStep) / noteStep) * 0.4;
+            double sample = Math.sin(2 * Math.PI * notes[nIdx] * t) * env;
+            buffer[i] = (byte) (sample * 110 + 128);
+        }
+        return buffer;
+    }
+
+    // Suara UI Click
+    private static byte[] generateClickSample() {
+        int length = (int) (SAMPLE_RATE * 0.04);
+        byte[] buffer = new byte[length];
+        for (int i = 0; i < length; i++) {
+            double t = (double) i / SAMPLE_RATE;
+            double sample = Math.sin(2 * Math.PI * 1800.0 * t) * Math.exp(-t * 120);
+            buffer[i] = (byte) (sample * 90 + 128);
+        }
+        return buffer;
+    }
+
     public static synchronized void startBGM() {
         if (!musicEnabled || runningMusic) return;
         runningMusic = true;
 
         musicThread = new Thread(() -> {
-            // Urutan nada arpeggio sci-fi (Frekuensi dalam Hz)
-            double[] bassNotes = {130.81, 146.83, 164.81, 174.61, 196.00, 220.00}; // C3 - A3
+            double[] bassNotes = {130.81, 146.83, 164.81, 174.61, 196.00, 220.00};
             double[] leadNotes = {
-                261.63, 329.63, 392.00, 523.25, // C - E - G - C
-                293.66, 369.99, 440.00, 587.33, // D - F# - A - D
-                246.94, 329.63, 392.00, 493.88, // B - E - G - B
-                261.63, 329.63, 392.00, 659.25  // C - E - G - E
+                    261.63, 329.63, 392.00, 523.25,
+                    293.66, 369.99, 440.00, 587.33,
+                    246.94, 329.63, 392.00, 493.88,
+                    261.63, 329.63, 392.00, 659.25
             };
 
             AudioFormat format = new AudioFormat(SAMPLE_RATE, 8, 1, false, false);
@@ -198,8 +256,7 @@ public class SoundManager {
                 line.start();
 
                 int noteIdx = 0;
-                int bassIdx = 0;
-                int stepDurationSamples = (int) (SAMPLE_RATE * 0.16); // 160ms per beat
+                int stepDurationSamples = (int) (SAMPLE_RATE * 0.16);
                 byte[] chunk = new byte[stepDurationSamples];
 
                 while (runningMusic) {
@@ -210,9 +267,8 @@ public class SoundManager {
                         double t = (double) i / SAMPLE_RATE;
                         double envelope = Math.exp(-((double) i / stepDurationSamples) * 2.2);
 
-                        // Synthesize lead synth (sin + tri) & sub-bass
                         double lead = Math.sin(2 * Math.PI * leadFreq * t) * 0.5
-                                    + Math.sin(4 * Math.PI * leadFreq * t) * 0.2;
+                                + Math.sin(4 * Math.PI * leadFreq * t) * 0.2;
                         double bass = Math.sin(2 * Math.PI * bassFreq * t) * 0.45;
 
                         double mix = (lead * envelope + bass * 0.7) * 0.4;
@@ -232,9 +288,6 @@ public class SoundManager {
         musicThread.start();
     }
 
-    /**
-     * Menghentikan musik latar.
-     */
     public static synchronized void stopBGM() {
         runningMusic = false;
         if (musicThread != null) {
@@ -243,4 +296,3 @@ public class SoundManager {
         }
     }
 }
-
