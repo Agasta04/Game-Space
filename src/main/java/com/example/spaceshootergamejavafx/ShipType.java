@@ -90,3 +90,4 @@ public enum ShipType {
         return magnetRange;
     }
 }
+

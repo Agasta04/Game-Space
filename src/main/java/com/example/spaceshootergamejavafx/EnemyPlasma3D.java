@@ -52,3 +52,4 @@ public class EnemyPlasma3D extends Entity3D {
         gc.restore();
     }
 }
+

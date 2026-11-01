@@ -55,3 +55,4 @@ public class Laser3D extends Entity3D {
         gc.restore();
     }
 }
+

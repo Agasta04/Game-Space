@@ -2,14 +2,13 @@ package com.example.spaceshootergamejavafx;
 
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.paint.*;
-import javafx.scene.shape.ArcType;
 
 import java.util.List;
 import java.util.Random;
 
 /**
  * Pesawat Pemain dalam Perspektif 3D Chase Camera View.
- * Menampilkan model pesawat 3D dengan banking roll, pitch, twin plasma engine, crosshair 3D, dan drone pendukung.
+ * Menggunakan ShipRenderer profesional untuk render presisi tanpa distorsi.
  */
 public class PlayerShip3D extends Entity3D {
 
@@ -33,7 +32,7 @@ public class PlayerShip3D extends Entity3D {
     private final Random random = new Random();
 
     public PlayerShip3D(ShipType shipType, DroneType droneType) {
-        super(0, 110, 120, 36.0); // Berada di Z=120, agak di bawah tengah layar
+        super(0, 115, 110, 36.0); // Z=110 dekat di depan kamera
         this.shipType = shipType;
         this.droneType = droneType;
     }
@@ -83,35 +82,35 @@ public class PlayerShip3D extends Entity3D {
     public void update() {
         double speed = shipType.getSpeed();
 
-        // Pergerakan X (Kiri - Kanan)
+        // Kontrol X (Kiri-Kanan)
         double targetRoll = 0.0;
         if (moveLeft) {
             x -= speed;
-            targetRoll = -0.65;
+            targetRoll = -0.55;
         }
         if (moveRight) {
             x += speed;
-            targetRoll = 0.65;
+            targetRoll = 0.55;
         }
 
-        // Pergerakan Y (Atas - Bawah)
+        // Kontrol Y (Atas-Bawah)
         double targetPitch = 0.0;
         if (moveUp) {
             y -= speed * 0.85;
-            targetPitch = -0.35;
+            targetPitch = -0.3;
         }
         if (moveDown) {
             y += speed * 0.85;
-            targetPitch = 0.35;
+            targetPitch = 0.3;
         }
 
-        // Batasi ruang gerak 3D
+        // Batas gerak 3D di layar
         if (x < -360) x = -360;
         if (x > 360) x = 360;
-        if (y < -180) y = -180;
-        if (y > 170) y = 170;
+        if (y < -160) y = -160;
+        if (y > 165) y = 165;
 
-        // Smooth Interpolation Roll & Pitch
+        // Smooth Interpolation
         double handling = shipType.getHandling();
         currentRoll += (targetRoll - currentRoll) * handling;
         currentPitch += (targetPitch - currentPitch) * handling;
@@ -124,23 +123,19 @@ public class PlayerShip3D extends Entity3D {
         }
     }
 
-    /**
-     * Memancarkan partikel api mesin plasma roket ke belakang kamera.
-     */
     public void emitThrusterParticles(List<Particle> particles, Camera3D camera) {
         double scale = camera.getScale(this.z);
         double sx = camera.projectX(this.x, this.z);
         double sy = camera.projectY(this.y, this.z);
 
-        double rollFactor = 1.0 - Math.abs(currentRoll) * 0.25;
-        double spacing = 16 * scale * rollFactor;
-        double engineY = sy + (18 * scale);
+        double spacing = 16 * scale;
+        double engineY = sy + (20 * scale);
 
         double[] engineXs = {sx - spacing + currentRoll * 6, sx + spacing + currentRoll * 6};
 
         for (double eX : engineXs) {
             double pVx = (random.nextDouble() - 0.5) * 1.5 - currentRoll * 3.0;
-            double pVy = 3.0 + random.nextDouble() * 3.5;
+            double pVy = 3.5 + random.nextDouble() * 3.5;
             Color flameCol = (random.nextDouble() < 0.6)
                     ? shipType.getPrimaryColor()
                     : Color.web("#ffffff");
@@ -150,11 +145,8 @@ public class PlayerShip3D extends Entity3D {
 
     @Override
     public void render(GraphicsContext gc, Camera3D camera) {
-        gc.save();
-
         // Kedip saat kebal setelah terkena tabrakan
         if (invulnerableTimer > 0 && ((int) (invulnerableTimer * 20) % 2 == 0)) {
-            gc.restore();
             return;
         }
 
@@ -162,151 +154,55 @@ public class PlayerShip3D extends Entity3D {
         double sx = camera.projectX(this.x, this.z);
         double sy = camera.projectY(this.y, this.z);
 
-        double w = 80 * scale;
-        double h = 60 * scale;
-
-        // --- 1. RENDER RETICLE / CROSSHAIR 3D DI HORIZON ---
+        // 1. Crosshair Bidik 3D di Horizon
         renderCrosshair3D(gc, camera);
 
-        // --- 2. RENDER DRONE PENDUKUNG (JIKA DIPILIH) ---
+        // 2. Drone Pendukung
         if (droneType != null) {
-            renderCompanionDrone(gc, camera, sx, sy, scale);
+            renderCompanionDrone(gc, sx, sy, scale);
         }
 
-        // --- 3. PERSPEKTIF ROLL & SHADING 3D PESAWAT ---
-        double rollFactor = 1.0 - Math.abs(currentRoll) * 0.35;
-        double rollOffset = currentRoll * 24 * scale;
-        double pitchOffset = currentPitch * 15 * scale;
+        // 3. Render Pesawat Pemain Menggunakan ShipRenderer Solid
+        ShipRenderer.renderShip(gc, shipType, sx, sy, scale, currentRoll, currentPitch, engineAnim);
 
-        // Api Pendorong Belakang (Twin Thruster Nozzles)
-        double flamePulse = Math.sin(engineAnim) * (6 * scale);
-        double engineSpacing = 16 * scale * rollFactor;
-        renderThrusterGlow(gc, sx - engineSpacing + rollOffset * 0.5, sy + 16 * scale + pitchOffset, 12 * scale, 22 * scale + flamePulse);
-        renderThrusterGlow(gc, sx + engineSpacing + rollOffset * 0.5, sy + 16 * scale + pitchOffset, 12 * scale, 22 * scale + flamePulse);
-
-        // Sayap Kiri 3D
-        double leftSpan = (w * 0.65) * (1.0 - currentRoll * 0.45);
-        double[] lWingX = {sx - 10 * scale * rollFactor, sx - leftSpan, sx - 12 * scale * rollFactor};
-        double[] lWingY = {sy - 6 * scale + pitchOffset, sy + 16 * scale + pitchOffset, sy + 10 * scale + pitchOffset};
-        LinearGradient lWingGrad = new LinearGradient(
-                sx - leftSpan, 0, sx, 0, false, CycleMethod.NO_CYCLE,
-                new Stop(0.0, shipType.getAccentColor()),
-                new Stop(0.6, shipType.getBodyColor()),
-                new Stop(1.0, Color.BLACK)
-        );
-        gc.setFill(lWingGrad);
-        gc.fillPolygon(lWingX, lWingY, 3);
-        gc.setStroke(shipType.getPrimaryColor());
-        gc.setLineWidth(1.2 * scale);
-        gc.strokePolygon(lWingX, lWingY, 3);
-
-        // Sayap Kanan 3D
-        double rightSpan = (w * 0.65) * (1.0 + currentRoll * 0.45);
-        double[] rWingX = {sx + 10 * scale * rollFactor, sx + rightSpan, sx + 12 * scale * rollFactor};
-        double[] rWingY = {sy - 6 * scale + pitchOffset, sy + 16 * scale + pitchOffset, sy + 10 * scale + pitchOffset};
-        LinearGradient rWingGrad = new LinearGradient(
-                sx, 0, sx + rightSpan, 0, false, CycleMethod.NO_CYCLE,
-                new Stop(0.0, Color.BLACK),
-                new Stop(0.4, shipType.getBodyColor()),
-                new Stop(1.0, shipType.getAccentColor())
-        );
-        gc.setFill(rWingGrad);
-        gc.fillPolygon(rWingX, rWingY, 3);
-        gc.setStroke(shipType.getPrimaryColor());
-        gc.setLineWidth(1.2 * scale);
-        gc.strokePolygon(rWingX, rWingY, 3);
-
-        // Badan Utama Pesawat 3D (Fuselage Silinder Menghadap Depan)
-        double bodyW = 28 * scale * rollFactor;
-        double bodyLeft = sx - bodyW / 2.0 + rollOffset * 0.3;
-        double bodyTop = sy - 26 * scale + pitchOffset;
-
-        // Moncong Depan
-        double[] noseX = {sx + rollOffset * 0.6, bodyLeft, bodyLeft + bodyW};
-        double[] noseY = {bodyTop - 12 * scale, bodyTop + 14 * scale, bodyTop + 14 * scale};
-        LinearGradient noseGrad = new LinearGradient(
-                bodyLeft, 0, bodyLeft + bodyW, 0, false, CycleMethod.NO_CYCLE,
-                new Stop(0.0, shipType.getBodyColor()),
-                new Stop(0.4, Color.WHITE),
-                new Stop(1.0, shipType.getBodyColor())
-        );
-        gc.setFill(noseGrad);
-        gc.fillPolygon(noseX, noseY, 3);
-
-        // Bodi Belakang
-        LinearGradient bodyGrad = new LinearGradient(
-                bodyLeft, 0, bodyLeft + bodyW, 0, false, CycleMethod.NO_CYCLE,
-                new Stop(0.0, shipType.getBodyColor().darker()),
-                new Stop(0.35, Color.WHITE),
-                new Stop(0.7, shipType.getBodyColor()),
-                new Stop(1.0, Color.BLACK)
-        );
-        gc.setFill(bodyGrad);
-        gc.fillRoundRect(bodyLeft, bodyTop + 12 * scale, bodyW, 30 * scale, 6 * scale, 6 * scale);
-
-        // Kanopi Kokpit Kaca 3D
-        double cockpitW = bodyW * 0.65;
-        double cockpitX = sx - cockpitW / 2.0 + rollOffset * 0.45;
-        double cockpitY = bodyTop + 2 * scale;
-        LinearGradient cockpitGrad = new LinearGradient(
-                cockpitX, cockpitY, cockpitX + cockpitW, cockpitY + 16 * scale, false, CycleMethod.NO_CYCLE,
-                new Stop(0.0, shipType.getPrimaryColor()),
-                new Stop(0.5, Color.WHITE),
-                new Stop(1.0, shipType.getAccentColor())
-        );
-        gc.setFill(cockpitGrad);
-        gc.fillOval(cockpitX, cockpitY, cockpitW, 16 * scale);
-
-        // Perisai Energi Heksagonal (Jika Aegis Drone atau sedang kebal)
+        // 4. Perisai Pelindung (Aegis Drone atau saat kebal)
         if (droneType == DroneType.SHIELD_DRONE || invulnerableTimer > 0) {
-            gc.setStroke(Color.color(0.0, 0.9, 1.0, 0.45 + Math.sin(engineAnim) * 0.25));
-            gc.setLineWidth(2.0 * scale);
-            gc.strokeOval(sx - w * 0.65, sy - h * 0.7, w * 1.3, h * 1.4);
+            gc.save();
+            gc.setStroke(Color.color(0.0, 0.9, 1.0, 0.5 + Math.sin(engineAnim) * 0.25));
+            gc.setLineWidth(2.2 * scale);
+            gc.strokeOval(sx - 48 * scale, sy - 40 * scale, 96 * scale, 80 * scale);
+            gc.restore();
         }
-
-        gc.restore();
-    }
-
-    private void renderThrusterGlow(GraphicsContext gc, double tx, double ty, double tw, double th) {
-        RadialGradient glow = new RadialGradient(
-                0, 0, tx, ty, tw * 1.4, false, CycleMethod.NO_CYCLE,
-                new Stop(0, Color.WHITE),
-                new Stop(0.3, shipType.getPrimaryColor()),
-                new Stop(0.8, shipType.getAccentColor()),
-                new Stop(1.0, Color.color(0, 0, 0, 0))
-        );
-        gc.setFill(glow);
-        gc.fillOval(tx - tw / 2.0, ty, tw, th);
     }
 
     private void renderCrosshair3D(GraphicsContext gc, Camera3D camera) {
-        // Crosshair diproyeksikan di depan pesawat pada jarak horizon Z = 750
-        double targetZ = 750;
+        double targetZ = 700.0;
         double cx = camera.projectX(this.x * 0.6, targetZ);
         double cy = camera.projectY(this.y * 0.6, targetZ);
-        double cSize = 18;
+        double cSize = 18.0;
 
-        gc.setStroke(Color.color(shipType.getPrimaryColor().getRed(), shipType.getPrimaryColor().getGreen(), shipType.getPrimaryColor().getBlue(), 0.75));
-        gc.setLineWidth(1.5);
+        gc.save();
+        Color col = shipType.getPrimaryColor();
+        gc.setStroke(Color.color(col.getRed(), col.getGreen(), col.getBlue(), 0.75));
+        gc.setLineWidth(1.6);
         gc.strokeOval(cx - cSize / 2.0, cy - cSize / 2.0, cSize, cSize);
 
-        // 4 Garis Bidik
-        gc.strokeLine(cx - cSize, cy, cx - cSize * 0.5, cy);
-        gc.strokeLine(cx + cSize * 0.5, cy, cx + cSize, cy);
-        gc.strokeLine(cx, cy - cSize, cx, cy - cSize * 0.5);
-        gc.strokeLine(cx, cy + cSize * 0.5, cx, cy + cSize);
+        gc.strokeLine(cx - cSize, cy, cx - cSize * 0.45, cy);
+        gc.strokeLine(cx + cSize * 0.45, cy, cx + cSize, cy);
+        gc.strokeLine(cx, cy - cSize, cx, cy - cSize * 0.45);
+        gc.strokeLine(cx, cy + cSize * 0.45, cx, cy + cSize);
 
-        // Titik tengah
         gc.setFill(Color.WHITE);
         gc.fillOval(cx - 1.5, cy - 1.5, 3, 3);
+        gc.restore();
     }
 
-    private void renderCompanionDrone(GraphicsContext gc, Camera3D camera, double sx, double sy, double scale) {
-        double droneOrbitX = sx + Math.cos(droneAnim) * (55 * scale);
-        double droneOrbitY = sy - 20 * scale + Math.sin(droneAnim * 1.5) * (14 * scale);
-        double droneSize = 14 * scale;
+    private void renderCompanionDrone(GraphicsContext gc, double sx, double sy, double scale) {
+        double droneOrbitX = sx + Math.cos(droneAnim) * (58 * scale);
+        double droneOrbitY = sy - 18 * scale + Math.sin(droneAnim * 1.5) * (14 * scale);
+        double droneSize = 15 * scale;
 
-        // Drone Sphere 3D
+        gc.save();
         RadialGradient droneGrad = new RadialGradient(
                 -45, 0.4, droneOrbitX, droneOrbitY, droneSize / 2.0, false, CycleMethod.NO_CYCLE,
                 new Stop(0.0, Color.WHITE),
@@ -316,26 +212,21 @@ public class PlayerShip3D extends Entity3D {
         gc.setFill(droneGrad);
         gc.fillOval(droneOrbitX - droneSize / 2.0, droneOrbitY - droneSize / 2.0, droneSize, droneSize);
 
-        // Drone Aura Ring
         gc.setStroke(droneType.getColor());
-        gc.setLineWidth(1.2 * scale);
+        gc.setLineWidth(1.5 * scale);
         gc.strokeOval(droneOrbitX - droneSize * 0.8, droneOrbitY - droneSize * 0.35, droneSize * 1.6, droneSize * 0.7);
+        gc.restore();
     }
 
-    /**
-     * Menembakkan laser berkas energi ke horizon 3D.
-     */
     public void shoot(List<Laser3D> lasers) {
         double leftWingX = this.x - 28;
         double rightWingX = this.x + 28;
         double startY = this.y + 4;
         double startZ = this.z + 10;
 
-        // Twin Lasers melesat ke target crosshair di horizon
         lasers.add(new Laser3D(leftWingX, startY, startZ, (this.x * 0.6 - leftWingX) * 0.05, (this.y * 0.6 - startY) * 0.05, shipType.getPrimaryColor()));
         lasers.add(new Laser3D(rightWingX, startY, startZ, (this.x * 0.6 - rightWingX) * 0.05, (this.y * 0.6 - startY) * 0.05, shipType.getPrimaryColor()));
 
-        // Jika ada Blaster Drone, tambahkan tembakan drone
         if (droneType == DroneType.BLASTER_DRONE) {
             lasers.add(new Laser3D(this.x, startY - 18, startZ, 0, -0.2, droneType.getColor()));
         }

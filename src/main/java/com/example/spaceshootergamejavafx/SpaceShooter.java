@@ -495,76 +495,39 @@ public class SpaceShooter extends Application {
     private void renderHangarShipPreview(GraphicsContext pgc, ShipType ship, double angle) {
         pgc.clearRect(0, 0, 340, 240);
 
-        // Platform Hologram Berputar
+        // Platform Hologram Hangar
         double cx = 170;
-        double cy = 160;
-        double platW = 180;
-        double platH = 40;
+        double cy = 175;
+        double platW = 190;
+        double platH = 44;
 
-        pgc.setStroke(Color.web("#00e5ff", 0.45));
-        pgc.setLineWidth(1.5);
+        // Cincin Basis Hologram
+        pgc.setStroke(Color.web("#00e5ff", 0.65));
+        pgc.setLineWidth(2.0);
         pgc.strokeOval(cx - platW / 2.0, cy - platH / 2.0, platW, platH);
 
-        // Cahaya Sorot Platform
+        // Cincin Luar Berdenyut
+        double pulseW = platW + Math.sin(angle * 3.0) * 8.0;
+        double pulseH = platH + Math.sin(angle * 3.0) * 3.0;
+        pgc.setStroke(Color.web("#00e5ff", 0.25));
+        pgc.strokeOval(cx - pulseW / 2.0, cy - pulseH / 2.0, pulseW, pulseH);
+
+        // Sorotan Cahaya Kolom Hologram
         LinearGradient beamGrad = new LinearGradient(
                 0, cy, 0, 40, false, CycleMethod.NO_CYCLE,
-                new Stop(0.0, Color.color(0.0, 0.9, 1.0, 0.2)),
+                new Stop(0.0, Color.color(0.0, 0.9, 1.0, 0.22)),
                 new Stop(1.0, Color.color(0, 0, 0, 0))
         );
         pgc.setFill(beamGrad);
-        double[] bx = {cx - platW / 2.0, cx + platW / 2.0, cx + 50, cx - 50};
-        double[] by = {cy, cy, 40, 40};
+        double[] bx = {cx - platW / 2.0, cx + platW / 2.0, cx + 55, cx - 55};
+        double[] by = {cy, cy, 35, 35};
         pgc.fillPolygon(bx, by, 4);
 
-        // Render Model Pesawat 3D Melayang
-        double shipY = 110 + Math.sin(angle * 2.0) * 8.0;
-        double rotCos = Math.cos(angle);
-        double rotSin = Math.sin(angle);
+        // Render Model Pesawat 3D Melayang Menggunakan ShipRenderer Presisi
+        double shipY = 115 + Math.sin(angle * 2.2) * 7.0;
+        double gentleRoll = Math.sin(angle) * 0.25;
 
-        pgc.save();
-        pgc.translate(cx, shipY);
-
-        // Sayap Kiri & Kanan Berputar Perspektif
-        double wingSpan = 70 * rotCos;
-        pgc.setFill(ship.getAccentColor());
-        pgc.fillPolygon(
-                new double[]{-15 * rotCos, -wingSpan, -20 * rotCos},
-                new double[]{-5, 20, 10},
-                3
-        );
-        pgc.fillPolygon(
-                new double[]{15 * rotCos, wingSpan, 20 * rotCos},
-                new double[]{-5, 20, 10},
-                3
-        );
-
-        // Badan Pesawat
-        LinearGradient shipGrad = new LinearGradient(
-                -20, 0, 20, 0, false, CycleMethod.NO_CYCLE,
-                new Stop(0.0, ship.getBodyColor().darker()),
-                new Stop(0.4, Color.WHITE),
-                new Stop(1.0, ship.getBodyColor())
-        );
-        pgc.setFill(shipGrad);
-        pgc.fillRoundRect(-14 * rotCos, -30, 28 * Math.abs(rotCos), 55, 8, 8);
-
-        // Moncong Depan
-        pgc.fillPolygon(
-                new double[]{0, -14 * rotCos, 14 * rotCos},
-                new double[]{-45, -30, -30},
-                3
-        );
-
-        // Kanopi Kokpit Kaca
-        pgc.setFill(ship.getPrimaryColor());
-        pgc.fillOval(-8 * rotCos, -25, 16 * Math.abs(rotCos), 22);
-
-        // Api Pendorong Belakang
-        pgc.setFill(Color.web("#00e5ff"));
-        pgc.fillOval(-10 * rotCos, 25, 8 * Math.abs(rotCos), 14);
-        pgc.fillOval(2 * rotCos, 25, 8 * Math.abs(rotCos), 14);
-
-        pgc.restore();
+        ShipRenderer.renderShip(pgc, ship, cx, shipY, 1.45, gentleRoll, 0.0, angle);
     }
 
     private void startNewGame() {

@@ -69,3 +69,4 @@ public abstract class Entity3D implements Comparable<Entity3D> {
         return Double.compare(other.z, this.z);
     }
 }
+
